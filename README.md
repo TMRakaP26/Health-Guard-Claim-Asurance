@@ -344,6 +344,31 @@ Database lokal terpisah dari database dalam volume Docker. Akun yang dibuat di s
 
 Tabel ini merupakan alur kerja tim yang disarankan. Pipeline CI/CD, penjadwalan backup, dan sistem audit keputusan belum disediakan otomatis oleh proyek.
 
+### Auto-sync ke GitHub
+
+Repo ini menyertakan `auto-sync.ps1` untuk commit dan push otomatis setiap ada perubahan file. Pasang alias sekali per clone:
+
+```powershell
+git config --local alias.autosync '!powershell -NoProfile -ExecutionPolicy Bypass -File ./auto-sync.ps1'
+```
+
+Jalankan dari folder mana pun di dalam repo:
+
+```powershell
+git autosync
+```
+
+Watcher berjalan sampai `Ctrl+C`. Perubahan di-commit setelah 3 detik tanpa perubahan lain, lalu di-push ke `origin/main`.
+
+| Perintah | Fungsi |
+|---|---|
+| `git autosync -Once` | Sinkronisasi sekali lalu keluar |
+| `git autosync -Pull` | Ambil perubahan remote sebelum push |
+| `git autosync -IntervalSeconds 5 -DebounceSeconds 5` | Ubah interval cek dan waktu tunggu |
+| `git autosync -Branch develop` | Sinkronisasi branch lain |
+
+Catatan: terminal harus tetap terbuka dan log tersimpan di `.git/autosync.log`. Jika push ditolak karena remote lebih baru, jalankan `git autosync -Pull` atau `git pull --rebase`, lalu ulangi. Konflik harus diselesaikan manual.
+
 ## API dan model data
 
 Seluruh endpoint berikut memakai awalan **`/api`**. Register, login, dan demo-users adalah endpoint publik; endpoint lainnya berada dalam middleware `auth:sanctum` dan memerlukan `Authorization: Bearer <token>`.
