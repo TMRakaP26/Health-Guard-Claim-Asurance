@@ -1,0 +1,5 @@
+﻿Generated with the built-in imagegen tool.
+Asset: login-healthcare.png
+
+Prompt:
+Use case: illustration-story. Asset type: illustration for left half of HealthGuard health insurance login webpage. Create a polished clean flat vector-style illustration on pure white background, square canvas. A female healthcare professional with dark navy hair and white/light blue coat stands on the left; a male patient in sky-blue shirt and navy trousers stands on right touching a large tilted smartphone in center showing a shield with check mark and three checklist rows. Floating small healthcare cards, medical cross, simple chart and insurance document around them. Soft pale blue elliptical floor shadows. Airy, friendly, elegant corporate illustration like modern insurance portal artwork. Palette exclusively sky blue, light cyan, pale blue, white, dark navy with natural warm skin tones; no purple. Full bodies, composition fills canvas with small clear margins. No text, no letters, no branding, no website or form. Save generated asset for use in project.
