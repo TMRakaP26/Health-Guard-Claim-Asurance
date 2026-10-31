@@ -54,7 +54,11 @@ try {
     $document = request('POST', '/api/claims/'.$claimId.'/documents', 201, null, $token, $multipart, 'multipart/form-data; boundary='.$boundary);
     $documentPath = $document['file_path'];
     request('GET', '/api/claims/'.$claimId.'/documents/'.$document['id'].'/download', 200, null, $token);
-    request('GET', '/storage/'.$documentPath, 200);
+    request('GET', '/storage/'.$documentPath, 404);
+    request('GET', '/api/claims/'.$claimId.'/documents/'.$document['id'].'/download', 401);
+    request('GET', '/api/demo-users', 404);
+    request('GET', '/api/claims/unassigned', 403, null, $token);
+    request('GET', '/api/claims/my-assignments', 403, null, $token);
     request('GET', '/api/notifications', 200, null, $token);
     request('POST', '/api/logout', 200, [], $token);
     request('GET', '/api/user', 401, null, $token);
@@ -66,7 +70,7 @@ try {
     if ($user) {
         $user->tokens()->delete();
         if ($documentPath) {
-            Illuminate\Support\Facades\Storage::disk('public')->delete($documentPath);
+            Illuminate\Support\Facades\Storage::disk('private')->delete($documentPath);
         }
         if ($claimId) {
             App\Models\Notification::where('claim_id', $claimId)->delete();

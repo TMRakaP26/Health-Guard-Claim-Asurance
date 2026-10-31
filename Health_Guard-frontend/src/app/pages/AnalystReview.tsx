@@ -49,11 +49,37 @@ export function AnalystReview() {
   const [zoom, setZoom] = useState(100);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
   const [docKey, setDocKey] = useState(0); // used to force iframe reload
+  const [docUrl, setDocUrl] = useState('');
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [documentError, setDocumentError] = useState('');
 
   const activeDoc = documents[activeDocIndex] ?? null;
   const isImage = activeDoc ? /\.(jpe?g|png|gif|webp)$/i.test(activeDoc.file_name) : false;
   const isPdf = activeDoc ? activeDoc.mime_type === 'application/pdf' || /\.pdf$/i.test(activeDoc.file_name) : false;
-  const docUrl = activeDoc ? `/storage/${activeDoc.file_path.replace(/^storage\//, '')}` : '';
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl = '';
+    setDocUrl('');
+    setDocumentError('');
+    setIsLoadingPreview(false);
+    if (!id || !activeDoc) return;
+    setIsLoadingPreview(true);
+    apiClient.get<Blob>(`/claims/${id}/documents/${activeDoc.id}/download`, {
+      responseType: 'blob', signal: controller.signal,
+    }).then(response => {
+      if (controller.signal.aborted) return;
+      objectUrl = URL.createObjectURL(response.data);
+      setDocUrl(objectUrl);
+    }).catch(() => {
+      if (!controller.signal.aborted) setDocumentError('Unable to load this document. Please retry.');
+    }).finally(() => {
+      if (!controller.signal.aborted) setIsLoadingPreview(false);
+    });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id, activeDoc?.id, docKey]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -76,12 +102,13 @@ export function AnalystReview() {
         setDocuments(Array.isArray(data) ? data : []);
       } catch {
         setDocuments([]);
+        setDocumentError('Unable to load documents. Please retry.');
       } finally {
         setIsFetchingDocs(false);
       }
     };
     fetchDocs();
-  }, [id]);
+  }, [id, docKey]);
 
   if (!claim) {
     return (
@@ -114,28 +141,22 @@ export function AnalystReview() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!activeDoc) return;
-    const downloadUrl = `/api/claims/${claim.id}/documents/${activeDoc.id}/download`;
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = activeDoc.file_name;
-    // Fetch the file as blob to trigger proper download
-    const token = localStorage.getItem('auth_token');
-    fetch(downloadUrl, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      })
-      .catch(() => {
-        // fallback: open in new tab
-        window.open(downloadUrl, '_blank');
-      });
+    setDocumentError('');
+    try {
+      const response = await apiClient.get<Blob>(`/claims/${claim.id}/documents/${activeDoc.id}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = activeDoc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setDocumentError('Download failed. Please retry.');
+    }
   };
 
   const handleRefresh = () => {
@@ -318,7 +339,12 @@ export function AnalystReview() {
 
             {/* Document preview area */}
             <div className="flex-1 bg-slate-200/40 overflow-auto flex justify-center items-start shadow-inner relative">
-              {isFetchingDocs ? (
+              {documentError ? (
+                <div role="alert" className="p-8 text-center text-rose-700">
+                  <p>{documentError}</p>
+                  <button type="button" onClick={handleRefresh} className="mt-3 underline">Retry</button>
+                </div>
+              ) : isFetchingDocs || isLoadingPreview || (activeDoc && !docUrl) ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400 p-8">
                   <Loader2 size={32} className="animate-spin" />
                   <span className="text-sm">Loading documents...</span>

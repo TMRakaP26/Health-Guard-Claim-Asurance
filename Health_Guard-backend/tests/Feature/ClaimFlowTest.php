@@ -85,7 +85,7 @@ class ClaimFlowTest extends TestCase
     {
         $client = User::factory()->create(['role' => 'client']);
         $analyst = User::factory()->create(['role' => 'analyst']);
-        $claim = $this->makeClaim($client);
+        $claim = $this->makeClaim($client, ['assigned_to' => $analyst->id]);
 
         Sanctum::actingAs($analyst);
 
@@ -105,7 +105,7 @@ class ClaimFlowTest extends TestCase
     {
         $client = User::factory()->create(['role' => 'client']);
         $analyst = User::factory()->create(['role' => 'analyst']);
-        $claim = $this->makeClaim($client);
+        $claim = $this->makeClaim($client, ['assigned_to' => $analyst->id]);
 
         Sanctum::actingAs($analyst);
 
