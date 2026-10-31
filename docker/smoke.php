@@ -54,6 +54,8 @@ try {
     $document = request('POST', '/api/claims/'.$claimId.'/documents', 201, null, $token, $multipart, 'multipart/form-data; boundary='.$boundary);
     $documentPath = $document['file_path'];
     request('GET', '/api/claims/'.$claimId.'/documents/'.$document['id'].'/download', 200, null, $token);
+    // Exercise the web-server deny rule even when a legacy public file exists.
+    Illuminate\Support\Facades\Storage::disk('public')->put($documentPath, $png);
     request('GET', '/storage/'.$documentPath, 404);
     request('GET', '/api/claims/'.$claimId.'/documents/'.$document['id'].'/download', 401);
     request('GET', '/api/demo-users', 404);
@@ -71,6 +73,7 @@ try {
         $user->tokens()->delete();
         if ($documentPath) {
             Illuminate\Support\Facades\Storage::disk('private')->delete($documentPath);
+            Illuminate\Support\Facades\Storage::disk('public')->delete($documentPath);
         }
         if ($claimId) {
             App\Models\Notification::where('claim_id', $claimId)->delete();

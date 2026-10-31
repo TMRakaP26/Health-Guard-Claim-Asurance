@@ -7,8 +7,9 @@ use App\Models\Document;
 use App\Rules\SafeUpload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
@@ -27,7 +28,7 @@ class DocumentController extends Controller
 
         Gate::authorize('uploadDocument', $claim);
 
-        $validated = $request->validate([
+        $request->validate([
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240', new SafeUpload],
         ]);
 
@@ -35,13 +36,13 @@ class DocumentController extends Controller
         $path = $file->store('documents', 'private');
 
         try {
-        $document = Document::create([
-            'claim_id' => $claim->id,
-            'file_name' => $file->getClientOriginalName(),
-            'file_path' => $path,
-            'file_size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
-        ]);
+            $document = Document::create([
+                'claim_id' => $claim->id,
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+            ]);
         } catch (\Throwable $exception) {
             Storage::disk('private')->delete($path);
             throw $exception;
@@ -50,7 +51,7 @@ class DocumentController extends Controller
         return response()->json($document, 201);
     }
 
-    public function download(Request $request, string $claimId, string $documentId): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function download(Request $request, string $claimId, string $documentId): StreamedResponse
     {
         $claim = Claim::where('claim_id', $claimId)->firstOrFail();
 

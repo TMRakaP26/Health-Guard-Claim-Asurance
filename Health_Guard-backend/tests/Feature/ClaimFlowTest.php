@@ -16,7 +16,7 @@ class ClaimFlowTest extends TestCase
     public function test_new_claim_gets_next_sequential_claim_id(): void
     {
         $client = User::factory()->create(['role' => 'client']);
-        $this->makeClaim($client, ['claim_id' => 'CLM-' . date('Y') . '-007']);
+        $this->makeClaim($client, ['claim_id' => 'CLM-'.date('Y').'-007']);
 
         Sanctum::actingAs($client);
 
@@ -28,7 +28,7 @@ class ClaimFlowTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('claim_id', 'CLM-' . date('Y') . '-008')
+            ->assertJsonPath('claim_id', 'CLM-'.date('Y').'-008')
             ->assertJsonPath('status', 'Pending')
             ->assertJsonPath('user_id', $client->id);
     }
@@ -48,8 +48,8 @@ class ClaimFlowTest extends TestCase
         $firstId = $this->postJson('/api/claims', $payload)->assertCreated()->json('claim_id');
         $secondId = $this->postJson('/api/claims', $payload)->assertCreated()->json('claim_id');
 
-        $this->assertSame('CLM-' . date('Y') . '-001', $firstId);
-        $this->assertSame('CLM-' . date('Y') . '-002', $secondId);
+        $this->assertSame('CLM-'.date('Y').'-001', $firstId);
+        $this->assertSame('CLM-'.date('Y').'-002', $secondId);
     }
 
     public function test_only_analyst_can_assign_a_claim(): void
@@ -143,7 +143,7 @@ class ClaimFlowTest extends TestCase
     {
         return Claim::create(array_merge([
             'user_id' => $owner->id,
-            'claim_id' => 'CLM-' . date('Y') . '-001',
+            'claim_id' => 'CLM-'.date('Y').'-001',
             'client_name' => $owner->name,
             'type' => 'Rawat Inap',
             'provider_name' => 'RS Sehat',

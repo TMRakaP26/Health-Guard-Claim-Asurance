@@ -135,7 +135,7 @@ export function AnalystReview() {
       await updateClaimStatus(claim.id, status, notes, approved);
       navigate('/analyst');
     } catch (err) {
-      console.error('Failed to update claim status:', err);
+      console.error('Failed to update claim status');
       setSubmitError('Failed to submit decision. Please try again.');
       setIsSubmitting(false);
     }

@@ -41,7 +41,7 @@ class SecurityAuthorizationTest extends TestCase
         $viewer = match ($role) {
             'guest' => null, 'owner' => $owner, 'assigned' => $analyst,
             'analyst' => User::factory()->create(['role' => 'analyst']),
-            'unknown' => User::factory()->create(['role' => 'unknown']),
+            'unknown' => User::factory()->create(['role' => 'client'])->forceFill(['role' => 'unknown']),
             default => User::factory()->create(['role' => 'client']),
         };
         if ($viewer) {
@@ -55,7 +55,9 @@ class SecurityAuthorizationTest extends TestCase
                 $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
             }
         }
-        $this->get('/storage/documents/evidence.pdf')->assertNotFound();
+        // Laravel's local storage route denies requests without a valid signature.
+        // The Nginx integration smoke separately asserts its 404 response.
+        $this->get('/storage/documents/evidence.pdf')->assertForbidden();
     }
 
     public function test_clients_cannot_use_any_analyst_endpoint(): void
@@ -155,7 +157,7 @@ class SecurityAuthorizationTest extends TestCase
         ]);
         Sanctum::actingAs($other);
         $this->getJson('/api/notifications')->assertJsonCount(0, 'data');
-        $this->postJson("/api/notifications/{$notification->id}/read")->assertForbidden();
+        $this->postJson("/api/notifications/{$notification->id}/read")->assertNotFound();
         $this->postJson('/api/notifications/read-all')->assertOk();
         $this->assertFalse($notification->fresh()->is_read);
         Sanctum::actingAs($owner);

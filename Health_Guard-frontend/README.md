@@ -1,5 +1,13 @@
 # HealthGuard Insurance Claims Management System — Frontend
 
+## Perubahan keamanan P0
+
+Pilihan akun tersimpan hanya mengisi email; pengguna tetap memasukkan password. Cookie lama berisi password dibuang pada pemuatan aplikasi. Endpoint `/api/demo-users` telah dihapus.
+
+Preview dan download dokumen menggunakan Axios dengan Bearer token serta blob URL sementara yang dibersihkan setelah digunakan. Tidak ada fallback URL publik. Perubahan password mencabut seluruh sesi; respons `reauthenticate: true` menghapus sesi lokal dan mengarahkan ke login. Token juga dapat berakhir setelah 480 menit, dengan penanganan 401 yang sama.
+
+Jalankan `npm.cmd run test:security` untuk tes cookie dan `npm.cmd run build` untuk build. Pengujian komponen/E2E, lint, dan typecheck lengkap dijadwalkan pada tahap P1/P2. Lihat [status improvement](../IMPROVEMENT.md).
+
 ## Tujuan Pembuatan Project
 
 HealthGuard adalah sistem manajemen klaim asuransi kesehatan berbasis web yang dirancang untuk mempermudah proses pengajuan, peninjauan, dan pengelolaan klaim asuransi. Sistem ini menghubungkan dua pihak utama:
@@ -48,14 +56,13 @@ Sistem ini bertujuan untuk mendigitalisasi dan mempercepat proses klaim asuransi
 
 ### Client (Nasabah)
 - Registrasi dan login akun
-- Quick Sign In (login cepat berbasis cookie untuk akun yang pernah login)
+- Email akun tersimpan untuk mengisi form; password selalu diminta dan tidak disimpan. Cookie lama yang mengandung password dibuang otomatis.
 - Pengajuan klaim asuransi multi-step form (data pribadi → detail klaim → upload dokumen → review)
 - Dashboard klaim dengan tabel dan detail modal
 - Edit & resubmit klaim yang ditolak (Rejected) atau disetujui parsial (Partially Approved)
 - Upload dokumen pendukung (PDF, JPG, PNG)
-- Notifikasi real-time saat status klaim berubah
+- Notifikasi melalui polling setiap 30 detik saat status klaim berubah
 - Profil pengguna dengan upload foto profil
-- Export data klaim ke Excel
 
 ### Analyst (Analis)
 - Dashboard analyst dengan tabel semua klaim dan filter
@@ -65,7 +72,8 @@ Sistem ini bertujuan untuk mendigitalisasi dan mempercepat proses klaim asuransi
 - Status klaim: Pending, Approved, Rejected, Needs Info, Partially Approved
 - Approved Billed — field khusus untuk memasukkan nilai persetujuan (hanya aktif saat Partially Approved)
 - Settings & profil analyst
-- Notifikasi real-time saat ada klaim baru
+- Notifikasi melalui polling setiap 30 detik saat ada klaim baru
+- Export data klaim yang dimuat ke Excel
 
 ---
 
@@ -141,11 +149,10 @@ Semua API call dilakukan melalui Axios client yang dikonfigurasi di `src/app/api
 
 | Method | Endpoint | Fungsi | Cara Kerja |
 |--------|----------|--------|------------|
-| POST | `/api/register` | Mendaftarkan akun baru | Mengirim data registrasi (name, email, password, role), server mengembalikan user object dan token Sanctum |
+| POST | `/api/register` | Mendaftarkan client baru | Mengirim name, email, password; role hanya boleh client. Server mengembalikan user dan token Sanctum |
 | POST | `/api/login` | Login ke sistem | Mengirim email dan password, server memverifikasi dengan bcrypt hash dan mengembalikan token |
 | POST | `/api/logout` | Logout dari sistem | Menghapus token Sanctum yang sedang aktif (requires auth) |
 | GET | `/api/user` | Mendapatkan data user yang sedang login | Mengembalikan data user berdasarkan token yang dikirim di header Authorization (requires auth) |
-| GET | `/api/demo-users` | Mendapatkan daftar user untuk Quick Sign In | Mengembalikan list user (id, name, email, role) untuk ditampilkan di halaman login |
 
 ### Profil Pengguna
 
@@ -173,7 +180,7 @@ Semua API call dilakukan melalui Axios client yang dikonfigurasi di `src/app/api
 | Method | Endpoint | Fungsi | Cara Kerja |
 |--------|----------|--------|------------|
 | GET | `/api/claims/{claimId}/documents` | Daftar dokumen klaim | Mengembalikan semua dokumen yang terkait dengan klaim tertentu (requires auth) |
-| POST | `/api/claims/{claimId}/documents` | Upload dokumen | Mengirim file (max 10MB, pdf/jpg/png). Hanya pemilik klaim yang bisa upload. File disimpan di storage/documents (requires auth) |
+| POST | `/api/claims/{claimId}/documents` | Upload dokumen | Mengirim file non-kosong (max 10MB, pdf/jpg/png), isi harus sesuai ekstensi. Hanya client pemilik; file disimpan pada disk privat |
 | GET | `/api/claims/{claimId}/documents/{documentId}/download` | Download dokumen | Mendownload file dokumen dari storage (requires auth) |
 
 ### Notifikasi

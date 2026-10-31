@@ -66,7 +66,7 @@ export function UnassignedClaims() {
       if (err.response?.status === 409) {
         navigate(`/analyst/review/${claimId}`);
       } else {
-        console.error('Failed to assign claim:', err);
+        console.error('Failed to assign claim');
       }
     } finally {
       setAssigningId(null);

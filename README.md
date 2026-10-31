@@ -163,7 +163,7 @@ Frontend memeriksa jumlah notifikasi belum dibaca setiap **30 detik**. Mekanisme
 | `Needs Info` | Membutuhkan informasi tambahan | Catatan dapat dibaca; aksi resubmit khusus status ini belum tersedia di dashboard |
 | `Partially Approved` | Disetujui sebagian | Analis mengisi nominal parsial; nasabah dapat submit ulang |
 
-API menerima kelima status tersebut dan belum menerapkan aturan transisi status yang ketat. Pemeriksaan role dan kepemilikan tidak sama di seluruh endpoint; lihat [batasan implementasi](#batasan-implementasi-saat-ini).
+API menerima kelima status tersebut dan belum menerapkan aturan transisi status yang ketat. Policy membatasi kepemilikan klaim/dokumen dan keputusan hanya untuk analis yang ditugaskan; lihat [catatan keamanan](#keamanan-p0) dan [batasan implementasi](#batasan-implementasi-saat-ini).
 
 ## Arsitektur aplikasi
 
@@ -371,12 +371,11 @@ Catatan: terminal harus tetap terbuka dan log tersimpan di `.git/autosync.log`. 
 
 ## API dan model data
 
-Seluruh endpoint berikut memakai awalan **`/api`**. Register, login, dan demo-users adalah endpoint publik; endpoint lainnya berada dalam middleware `auth:sanctum` dan memerlukan `Authorization: Bearer <token>`.
+Seluruh endpoint berikut memakai awalan **`/api`**. Hanya register dan login yang publik, keduanya dibatasi rate limit. Endpoint lainnya memakai `auth:sanctum`, rate limit API, dan `Authorization: Bearer <token>`. Endpoint `/demo-users` telah dihapus (404).
 
 | Area | Method dan endpoint | Fungsi |
 |---|---|---|
 | Autentikasi | `POST /register`, `POST /login`, `POST /logout` | Membuat akun, login, mencabut token aktif |
-| Demo | `GET /demo-users` | Daftar identitas akun untuk kebutuhan demo |
 | Profil | `GET /user`, `PUT /user` | Membaca dan memperbarui profil |
 | Foto profil | `POST /user/photo`, `DELETE /user/photo` | Upload/hapus foto profil |
 | Klaim | `GET /claims`, `POST /claims` | Daftar dan pengajuan klaim |
@@ -409,16 +408,17 @@ cd Health_Guard-backend
 composer test
 ```
 
-Konfigurasi `phpunit.xml` menggunakan SQLite `:memory:`. Tes yang tersedia mencakup registrasi/login, penolakan request tanpa autentikasi, nomor klaim, assignment, keputusan parsial, dan kepemilikan pembaruan klaim. Image runtime Docker menggunakan `--no-dev`, sehingga tidak menyertakan PHPUnit.
+Konfigurasi `phpunit.xml` menggunakan SQLite `:memory:`. Tes mencakup alur klaim, matriks akses, batas unggahan, migrasi dokumen privat, rate limit, masa berlaku token, dan pencabutan sesi. Image runtime Docker menggunakan `--no-dev`, sehingga tidak menyertakan PHPUnit.
 
 ### Build frontend
 
 ```powershell
 cd Health_Guard-frontend
+npm.cmd run test:security
 npm.cmd run build
 ```
 
-Build memeriksa proses bundling. Script test, lint, dan typecheck terpisah belum tersedia pada `package.json` frontend; build bukan pengganti pengujian UI atau pemeriksaan tipe lengkap.
+`test:security` menggunakan Node test runner dan Vite untuk menguji modul cookie TypeScript yang sebenarnya. Build memeriksa bundling; lint, typecheck, dan pengujian UI lengkap masih merupakan pekerjaan tahap berikutnya.
 
 ### Integrasi Docker
 
@@ -431,16 +431,24 @@ docker compose exec -T backend php /tmp/healthguard-smoke.php
 
 Smoke test mengirim request melalui Nginx untuk routing SPA, registrasi, login/logout, token, klaim, notifikasi, upload/download, dan akses storage. Data sementara dibersihkan setelah tes. Tes HTTP ini tidak memeriksa rendering browser, interaksi visual, atau seluruh workflow analis.
 
+## Keamanan P0
+
+- Email tersimpan hanya membantu mengisi form; password tetap wajib. Cookie lama yang mengandung password dibuang saat aplikasi dimuat.
+- Registrasi publik hanya membuat `client`; `role=analyst` menghasilkan 422. Buat analis melalui terminal tepercaya: `php artisan healthguard:create-analyst` (password diminta secara tersembunyi).
+- Client hanya dapat membaca/mengubah klaim dan dokumennya sendiri. Analis dapat membaca semua klaim/dokumen, tetapi hanya analis yang ditugaskan dapat memberi keputusan. Queue unassigned dan assignments hanya untuk analis; assignment hanya pada klaim `Pending` yang belum ditugaskan.
+- Dokumen baru disimpan pada disk `private`. Preview/download memakai Bearer token; URL publik dokumen lama diblokir. Foto profil tetap publik. **Instalasi lama wajib menjalankan `php artisan healthguard:privatize-documents` sebelum menerima traffic**; lihat [panduan upgrade Docker](DOCKER.md#upgrade-keamanan-p0).
+- Login dibatasi 5 request/menit per kombinasi email dan IP serta 20/menit per IP; registrasi 5/menit per IP; API terautentikasi 120/menit per pengguna. Batas terlampaui menghasilkan 429 dengan `Retry-After`.
+- Token berlaku 480 menit sejak penerbitan, dapat dikonfigurasi melalui `SANCTUM_TOKEN_EXPIRATION` (menit, minimum 1). Perubahan password mencabut semua token dan mengharuskan login ulang; logout biasa hanya mencabut token aktif.
+- Kredensial demo hanya untuk lingkungan lokal. Seeder tidak dijalankan otomatis. Produksi harus memakai `APP_DEBUG=false`, HTTPS, dan akun analis yang dibuat melalui akses operator tepercaya.
+
+Status implementasi dan batas verifikasi dicatat di [IMPROVEMENT.md](IMPROVEMENT.md).
+
 ## Batasan implementasi saat ini
 
 Berikut perilaku yang perlu diketahui saat menjalankan workflow atau melanjutkan pengembangan:
 
 | Area | Kondisi yang ditemukan pada kode |
 |---|---|
-| Quick Sign In | Menyimpan password akun dalam cookie yang dapat dibaca JavaScript; perlu desain ulang sebelum digunakan untuk akun nyata |
-| Pendaftaran analis | UI mendaftarkan client, tetapi API registrasi menerima role `analyst`; belum ada proses provisioning analis terbatas |
-| Kontrol akses | Endpoint unassigned belum memeriksa role analis; perubahan status memeriksa role tetapi belum membatasi pada analis yang ditugaskan |
-| Dokumen | API download memeriksa akses, tetapi file disimpan pada disk publik dan tersedia melalui `/storage/` |
 | Nominal parsial | UI meminta nominal untuk persetujuan parsial; backend masih menerima nilai nullable dan belum membatasi nominal pada total klaim |
 | Submit ulang | Backend memeriksa pemilik, tetapi belum membatasi status asal; assignment serta catatan lama tetap tersimpan, sementara state frontend menghapus catatan |
 | `Needs Info` | Status tersedia, tetapi aksi edit/resubmit pada dashboard belum mencakupnya |
@@ -459,7 +467,7 @@ Daftar ini mendokumentasikan kondisi implementasi, bukan menyatakan semua alur t
 | Perubahan kode belum terlihat di Docker | Jalankan `docker compose up -d --build --wait` karena kode disalin ke image |
 | Login akun lokal gagal di Docker | Database kedua lingkungan terpisah; buat akun pada lingkungan yang sedang dibuka |
 | API tidak terhubung dalam mode Vite | Pastikan Laravel berjalan pada port 8000 |
-| Dokumen lokal tidak tampil | Periksa keberadaan file, symlink `public/storage`, dan `php artisan storage:link` |
+| Dokumen lokal tidak tampil | Pastikan token valid dan file ada pada `storage/app/private/documents`; untuk file lama jalankan `php artisan healthguard:privatize-documents` |
 | PowerShell menolak `npm.ps1` | Gunakan `npm.cmd` tanpa mengubah execution policy sistem |
 | Seeder melaporkan email duplikat | Akun demo sudah ada; jangan menghapus database hanya untuk mengulang seeder |
 

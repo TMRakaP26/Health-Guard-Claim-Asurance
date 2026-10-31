@@ -1,4 +1,4 @@
-uatname: healthguard
+name: healthguard
 
 services:
   backend:

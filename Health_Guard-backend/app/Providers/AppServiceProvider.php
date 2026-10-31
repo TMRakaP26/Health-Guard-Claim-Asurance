@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use App\Models\Claim;
 use App\Models\Document;
 use App\Policies\ClaimPolicy;
@@ -11,6 +10,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,10 +30,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Claim::class, ClaimPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
 
-        RateLimiter::for('login', fn (Request $request) => [
-            Limit::perMinute(20)->by('login-ip:'.$request->ip()),
-            Limit::perMinute(5)->by('login-account:'.hash('sha256', strtolower((string) $request->input('email')).'|'.$request->ip())),
-        ]);
+        RateLimiter::for('login', function (Request $request) {
+            $email = $request->input('email');
+            $identity = is_string($email) ? strtolower(trim($email)) : '';
+
+            return [
+                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+                Limit::perMinute(5)->by('login-account:'.hash('sha256', $identity.'|'.$request->ip())),
+            ];
+        });
         RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by('register:'.$request->ip()));
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)->by('api:'.($request->user()?->id ?? $request->ip())));
     }

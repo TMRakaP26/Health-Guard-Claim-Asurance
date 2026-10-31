@@ -20,6 +20,29 @@ class SecurityUploadTest extends TestCase
 
     private Claim $claim;
 
+    private array $uploadPaths = [];
+
+    protected function tearDown(): void
+    {
+        foreach ($this->uploadPaths as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+        parent::tearDown();
+    }
+
+    private function upload(string $name, string $content): UploadedFile
+    {
+        // Real UploadedFile detects MIME from bytes. Laravel's fake defaults to the
+        // filename extension, which cannot exercise MIME spoofing protection.
+        $path = tempnam(sys_get_temp_dir(), 'healthguard-upload-');
+        $this->uploadPaths[] = $path;
+        file_put_contents($path, $content);
+
+        return new UploadedFile($path, $name, 'application/octet-stream', null, true);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -55,7 +78,7 @@ class SecurityUploadTest extends TestCase
         if ($bytes) {
             $content = str_pad($content, $bytes, ' ');
         }
-        $file = UploadedFile::fake()->createWithContent($name, $content);
+        $file = $this->upload($name, $content);
         $this->postJson('/api/claims/CLM-2026-001/documents', ['file' => $file])
             ->assertUnprocessable()->assertJsonValidationErrors('file');
         $this->assertSame(0, Document::count());
@@ -72,7 +95,7 @@ class SecurityUploadTest extends TestCase
     {
         $content = $content === 'PNG' ? base64_decode(self::PNG) : $content;
         $response = $this->postJson('/api/claims/CLM-2026-001/documents', [
-            'file' => UploadedFile::fake()->createWithContent($name, $content),
+            'file' => $this->upload($name, $content),
         ])->assertCreated();
         $path = $response->json('file_path');
         Storage::disk('private')->assertExists($path);
@@ -85,7 +108,7 @@ class SecurityUploadTest extends TestCase
     public function test_exact_document_size_limit_is_accepted(): void
     {
         $this->postJson('/api/claims/CLM-2026-001/documents', [
-            'file' => UploadedFile::fake()->createWithContent('limit.pdf', str_pad('%PDF-1.4 test', 10 * 1024 * 1024, ' ')),
+            'file' => $this->upload('limit.pdf', str_pad('%PDF-1.4 test', 10 * 1024 * 1024, ' ')),
         ])->assertCreated();
     }
 
@@ -108,7 +131,7 @@ class SecurityUploadTest extends TestCase
         if ($bytes) {
             $content = str_pad($content, $bytes, ' ');
         }
-        $this->postJson('/api/user/photo', ['photo' => UploadedFile::fake()->createWithContent($name, $content)])
+        $this->postJson('/api/user/photo', ['photo' => $this->upload($name, $content)])
             ->assertUnprocessable()->assertJsonValidationErrors('photo');
         $this->assertSame([], Storage::disk('public')->allFiles());
     }
@@ -116,7 +139,7 @@ class SecurityUploadTest extends TestCase
     public function test_valid_profile_photo_remains_public(): void
     {
         $response = $this->postJson('/api/user/photo', [
-            'photo' => UploadedFile::fake()->createWithContent('photo.png', base64_decode(self::PNG)),
+            'photo' => $this->upload('photo.png', base64_decode(self::PNG)),
         ])->assertOk();
         Storage::disk('public')->assertExists($response->json('user.profile_photo'));
     }

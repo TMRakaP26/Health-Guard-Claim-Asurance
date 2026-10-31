@@ -19,6 +19,7 @@ class SafeUpload implements ValidationRule
 
         if (! $value instanceof UploadedFile || ! $value->isValid() || $value->getSize() < 1) {
             $fail('The :attribute must be a non-empty uploaded file.');
+
             return;
         }
 

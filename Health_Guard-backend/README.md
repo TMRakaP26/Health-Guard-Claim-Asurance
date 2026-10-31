@@ -1,12 +1,22 @@
 # HealthGuard API
 
+## Perubahan keamanan P0
+
+Registrasi hanya membuat client. Analis dibuat melalui `php artisan healthguard:create-analyst`; hanya analis yang ditugaskan boleh memutuskan klaim. Analis tetap dapat membaca semua klaim/dokumen untuk proses triase. Client hanya dapat mengakses miliknya.
+
+Login dibatasi 5 request/menit per email+IP dan 20/menit per IP, registrasi 5/menit per IP, API terautentikasi 120/menit per pengguna. Token kedaluwarsa setelah 480 menit (`SANCTUM_TOKEN_EXPIRATION`). Password baru mencabut semua token; logout hanya mencabut token aktif.
+
+Dokumen klaim privat, file harus tidak kosong dan MIME sesuai ekstensi. Maksimum dokumen 10 MB dan foto 2 MB. Foto profil tetap publik. Instalasi lama harus menjalankan `php artisan healthguard:privatize-documents` sebelum membuka traffic; panduan upgrade dan kegagalan migrasi ada di [DOCKER.md](../DOCKER.md#upgrade-keamanan-p0).
+
+Jalankan `composer test` untuk tes regresi dan keamanan. Seeder demo tidak berjalan otomatis dan hanya untuk penggunaan lokal. Gunakan `APP_DEBUG=false` untuk produksi. Detail cakupan tahap ini ada di [IMPROVEMENT.md](../IMPROVEMENT.md).
+
 ## Tujuan Pembuatan Project
 
 **HealthGuard API** adalah sistem backend untuk manajemen klaim asuransi kesehatan (BPJS). Project ini dibangun untuk memudahkan proses pengajuan, review, dan pengelolaan klaim asuransi kesehatan antara **klien** (peserta asuransi) dan **analis** (petugas verifikator). Sistem ini memungkinkan:
 
 - Klien untuk mengajukan klaim asuransi kesehatan secara digital
 - Analis untuk me-review, menyetujui, menolak, atau meminta informasi tambahan atas klaim yang diajukan
-- Notifikasi real-time kepada setiap pihak terkait perubahan status klaim
+- Notifikasi tersimpan di database; frontend melakukan polling setiap 30 detik
 - Manajemen dokumen pendukung klaim secara terpusat
 
 ---
@@ -141,7 +151,7 @@ Authorization: Bearer <token>
 | username | string | Tidak | Username unik |
 | email | string (email) | Ya | Alamat email (harus unik) |
 | password | string (min 8) | Ya | Password akun |
-| role | string (client/analyst) | Tidak | Role pengguna, default: `client` |
+| role | string (`client`) | Tidak | Default `client`; nilai `analyst` ditolak 422 |
 | phone | string | Tidak | Nomor telepon |
 | address | string | Tidak | Alamat lengkap |
 | date_of_birth | date | Tidak | Tanggal lahir |
@@ -232,7 +242,7 @@ Authorization: Bearer <token>
 
 **Cara Kerja:**
 1. Jika ada perubahan password, verifikasi `current_password` terlebih dahulu
-2. Jika `current_password` benar, hash password baru dan update
+2. Jika `current_password` benar, hash password baru dan update; cabut semua token dalam transaksi yang sama. Response berisi `reauthenticate: true`, sehingga pengguna harus login ulang.
 3. Update field lain yang disertakan dalam request
 4. Return data user yang sudah diperbarui
 
@@ -261,9 +271,7 @@ Authorization: Bearer <token>
 ---
 
 #### 1.8 Demo Users
-**`GET /api/demo-users`** — Mendapatkan daftar pengguna untuk keperluan demo/testing.
-
-**Cara Kerja:** Return daftar semua user (id, name, email, role) yang diurutkan berdasarkan role. Endpoint ini bersifat **publik** (tidak perlu autentikasi).
+**`GET /api/demo-users` telah dihapus** dan menghasilkan 404. Daftar identitas pengguna tidak lagi dipublikasikan. Buat akun analis melalui command interaktif `php artisan healthguard:create-analyst` dari terminal operator tepercaya; password diminta tersembunyi.
 
 ---
 
@@ -289,14 +297,14 @@ Klaim adalah inti dari sistem ini. Setiap klaim memiliki ID unik berformat `CLM-
 #### 2.2 Get Unassigned Claims
 **`GET /api/claims/unassigned`** 🔒 — Mendapatkan daftar klaim yang belum ditugaskan ke analis manapun.
 
-**Cara Kerja:** Filter klaim dengan status `Pending` dan `assigned_to = null`. Digunakan oleh analyst untuk melihat klaim yang tersedia untuk di-assign.
+**Cara Kerja:** Middleware `role:analyst` membatasi akses. Filter klaim dengan status `Pending` dan `assigned_to = null`.
 
 ---
 
 #### 2.3 Get My Assignments
 **`GET /api/claims/my-assignments`** 🔒 — Mendapatkan daftar klaim yang ditugaskan ke analis yang sedang login.
 
-**Cara Kerja:** Filter klaim berdasarkan `assigned_to = id analis yang login`. Hanya berguna untuk role `analyst`.
+**Cara Kerja:** Middleware `role:analyst` membatasi akses. Filter klaim berdasarkan `assigned_to = id analis yang login`.
 
 ---
 
@@ -305,7 +313,7 @@ Klaim adalah inti dari sistem ini. Setiap klaim memiliki ID unik berformat `CLM-
 
 **Cara Kerja:**
 1. Validasi bahwa hanya **analyst** yang bisa assign klaim
-2. Cek apakah klaim belum di-assign ke analis lain (status 409 jika sudah)
+2. Update assignment secara atomik hanya jika status `Pending` dan belum ditugaskan; selain itu 409. Penugasan dan notifikasinya berada dalam satu transaksi.
 3. Set `assigned_to` ke ID analis yang melakukan assign
 4. Buat notifikasi ke pemilik klaim bahwa klaimnya sedang di-review
 5. Return data klaim yang sudah di-update
@@ -379,7 +387,7 @@ Klaim adalah inti dari sistem ini. Setiap klaim memiliki ID unik berformat `CLM-
 | `Partially Approved` | Klaim disetujui sebagian (dengan `approved_amount` tertentu) |
 
 **Cara Kerja:**
-1. Validasi bahwa hanya **analyst** yang bisa mengubah status
+1. Policy memvalidasi bahwa pengguna adalah **analyst yang ditugaskan pada klaim tersebut**; analis lain atau klaim tanpa penugasan ditolak 403
 2. Update status, notes, dan approved_amount
 3. Buat notifikasi ke pemilik klaim tentang perubahan status beserta catatan (jika ada)
 
@@ -405,7 +413,7 @@ Dokumen adalah file pendukung yang diunggah klien untuk melengkapi klaim (misaln
 
 **Cara Kerja:**
 1. Validasi bahwa hanya **pemilik klaim** yang bisa upload dokumen
-2. Simpan file ke `storage/app/public/documents/`
+2. Periksa kecocokan isi MIME dengan ekstensi dan file tidak kosong; simpan ke disk `private` pada `storage/app/private/documents/`
 3. Catat metadata dokumen (nama file, path, ukuran, mime type) ke database
 4. Return data dokumen yang tersimpan
 
@@ -417,7 +425,7 @@ Dokumen adalah file pendukung yang diunggah klien untuk melengkapi klaim (misaln
 **Cara Kerja:**
 1. Validasi akses (client hanya bisa download dari klaim miliknya)
 2. Cari dokumen berdasarkan ID di dalam klaim yang sesuai
-3. Stream file dari storage sebagai response download
+3. Policy mengizinkan client pemilik atau analis untuk membaca dokumen. Stream file privat dengan `Cache-Control: private, no-store` dan `X-Content-Type-Options: nosniff`. URL `/storage/documents/*` tidak dapat digunakan.
 
 ---
 

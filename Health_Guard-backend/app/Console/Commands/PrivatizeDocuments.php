@@ -23,6 +23,7 @@ class PrivatizeDocuments extends Command
             if (! preg_match('~^documents/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$~D', $path)) {
                 $this->error("Document {$document->id}: unexpected storage path.");
                 $failed = true;
+
                 continue;
             }
             try {
@@ -30,6 +31,7 @@ class PrivatizeDocuments extends Command
                     if (! $private->exists($path)) {
                         throw new \RuntimeException('File is missing from both disks.');
                     }
+
                     continue;
                 }
                 if (! $private->exists($path)) {
@@ -59,9 +61,11 @@ class PrivatizeDocuments extends Command
 
         if ($failed) {
             $this->error('Migration incomplete. Resolve failed documents before serving traffic.');
+
             return self::FAILURE;
         }
         $this->info('All referenced documents are private. Safe to run again.');
+
         return self::SUCCESS;
     }
 }

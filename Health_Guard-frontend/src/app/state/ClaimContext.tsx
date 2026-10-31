@@ -79,7 +79,7 @@ export function ClaimProvider({ children }: { children: ReactNode }) {
         setClaims(body.map(transformApiClaim));
       }
     } catch (error) {
-      console.error('Failed to fetch claims:', error);
+      console.error('Failed to fetch claims');
     } finally {
       setIsLoading(false);
     }

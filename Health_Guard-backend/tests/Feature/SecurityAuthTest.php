@@ -52,6 +52,12 @@ class SecurityAuthTest extends TestCase
         $this->postJson('/api/register', [])->assertStatus(429);
     }
 
+    public function test_malformed_login_email_returns_validation_error(): void
+    {
+        $this->postJson('/api/login', ['email' => ['invalid'], 'password' => 'password123'])
+            ->assertUnprocessable()->assertJsonValidationErrors('email');
+    }
+
     public function test_authenticated_api_is_throttled(): void
     {
         $user = User::factory()->create();

@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Rules\SafeUpload;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -56,7 +56,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -88,8 +88,8 @@ class AuthController extends Controller
 
         $rules = [
             'name' => 'sometimes|string|max:255',
-            'username' => 'sometimes|string|max:255|unique:users,username,' . $user->id,
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
+            'username' => 'sometimes|string|max:255|unique:users,username,'.$user->id,
+            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$user->id,
             'phone' => 'sometimes|string|max:20',
             'address' => 'sometimes|string|max:1000',
             'date_of_birth' => 'sometimes|date',
@@ -106,7 +106,7 @@ class AuthController extends Controller
 
         // Verify current password if trying to change password
         if (isset($validated['password'])) {
-            if (!Hash::check($validated['current_password'], $user->password)) {
+            if (! Hash::check($validated['current_password'], $user->password)) {
                 return response()->json(['message' => 'Current password is incorrect.'], 403);
             }
             $validated['password'] = Hash::make($validated['password']);
@@ -167,5 +167,4 @@ class AuthController extends Controller
             'message' => 'Profile photo removed',
         ]);
     }
-
 }

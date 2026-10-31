@@ -30,6 +30,7 @@ class CreateAnalyst extends Command
             foreach ($validator->errors()->all() as $message) {
                 $this->error($message);
             }
+
             return self::FAILURE;
         }
 
@@ -38,6 +39,7 @@ class CreateAnalyst extends Command
             'password' => Hash::make($data['password']), 'role' => 'analyst',
         ]);
         $this->info('Analyst account created.');
+
         return self::SUCCESS;
     }
 }
