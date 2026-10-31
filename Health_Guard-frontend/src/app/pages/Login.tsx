@@ -94,11 +94,15 @@ export function Login() {
             <p className="hg-login-register">Don't have an account? <Link to="/register">Create an account</Link></p>
             {quickUsers.length > 0 && (
               <details className="hg-login-quick">
-                <summary>Quick sign in with a saved account</summary>
+                <summary>Use a saved email address</summary>
                 <div className="hg-login-quick-list">
                   {quickUsers.map(quickUser => (
                     <div className="hg-login-quick-row" key={quickUser.email}>
-                      <button className="hg-login-quick-account" type="button" disabled={isLoading} onClick={() => signIn(quickUser.email, quickUser.password)}>
+                      <button className="hg-login-quick-account" type="button" disabled={isLoading} onClick={() => {
+                        setEmail(quickUser.email);
+                        setPassword('');
+                        document.getElementById('password')?.focus();
+                      }}>
                         <User size={18} /><span><strong>{quickUser.name}</strong><small>{quickUser.email}</small></span>
                       </button>
                       <button className="hg-login-remove" type="button" disabled={isLoading} onClick={() => handleRemoveUser(quickUser.email)} aria-label={'Remove ' + quickUser.name + ' from this device'}><X size={16} /></button>

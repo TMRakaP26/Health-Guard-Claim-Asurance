@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import apiClient from '../api/client';
-import { addQuickUser } from '../utils/cookies';
+import { addQuickUser, getQuickUsers } from '../utils/cookies';
 
 interface User {
   id: number;
@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    getQuickUsers(); // Discard legacy cookies containing passwords on every app load.
     const savedToken = localStorage.getItem('auth_token');
     const savedUser = localStorage.getItem('auth_user');
     if (savedToken && savedUser) {
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
     localStorage.setItem('auth_token', newToken);
     localStorage.setItem('auth_user', JSON.stringify(userData));
-    saveQuickUserCookie(userData, password);
+    saveQuickUserCookie(userData);
   };
 
   const register = async (name: string, email: string, password: string, role?: string, dateOfBirth?: string, bpjsNumber?: string) => {
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
     localStorage.setItem('auth_token', newToken);
     localStorage.setItem('auth_user', JSON.stringify(userData));
-    saveQuickUserCookie(userData, password);
+    saveQuickUserCookie(userData);
   };
 
   const logout = async () => {
@@ -93,12 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  function saveQuickUserCookie(userData: User, password?: string) {
+  function saveQuickUserCookie(userData: User) {
     addQuickUser({
       name: userData.name,
       email: userData.email,
       role: userData.role,
-      password: password || '',
     });
   }
 

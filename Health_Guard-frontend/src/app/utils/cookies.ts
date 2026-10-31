@@ -5,7 +5,6 @@ export interface QuickUser {
   name: string;
   email: string;
   role: 'client' | 'analyst';
-  password: string;
 }
 
 export function setCookie(name: string, value: string, days: number = 365) {
@@ -28,9 +27,18 @@ export function getQuickUsers(): QuickUser[] {
     const raw = getCookie('quick_user');
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((u: any) => u?.name && u?.email && u?.role && u?.password) as QuickUser[];
+    if (!Array.isArray(parsed) || parsed.some(u => u && typeof u === 'object' && 'password' in u)) {
+      removeCookie('quick_user');
+      return [];
+    }
+    return parsed.filter((u: unknown): u is QuickUser => {
+      if (!u || typeof u !== 'object') return false;
+      const candidate = u as Record<string, unknown>;
+      return typeof candidate.name === 'string' && typeof candidate.email === 'string'
+        && (candidate.role === 'client' || candidate.role === 'analyst');
+    }).map(({ name, email, role }) => ({ name, email, role }));
   } catch {
+    removeCookie('quick_user');
     return [];
   }
 }
@@ -38,7 +46,8 @@ export function getQuickUsers(): QuickUser[] {
 /** Add or move a user to the top of the quick sign-in list */
 export function addQuickUser(user: QuickUser) {
   const users = getQuickUsers().filter(u => u.email !== user.email);
-  users.unshift(user);
+  // Explicitly allowlist fields, even when callers supply additional properties.
+  users.unshift({ name: user.name, email: user.email, role: user.role });
   setCookie('quick_user', JSON.stringify(users.slice(0, MAX_QUICK_USERS)));
 }
 

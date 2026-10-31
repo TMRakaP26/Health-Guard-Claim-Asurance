@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\SafeUpload;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -18,7 +20,7 @@ class AuthController extends Controller
             'username' => 'sometimes|string|max:255|unique:users,username',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => 'sometimes|string|in:client,analyst',
+            'role' => 'sometimes|string|in:client',
             'phone' => 'sometimes|string|max:20',
             'address' => 'sometimes|string|max:1000',
             'date_of_birth' => 'sometimes|date',
@@ -30,7 +32,7 @@ class AuthController extends Controller
             'username' => $validated['username'] ?? null,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'client',
+            'role' => 'client',
             'phone' => $validated['phone'] ?? null,
             'address' => $validated['address'] ?? null,
             'date_of_birth' => $validated['date_of_birth'] ?? null,
@@ -111,18 +113,25 @@ class AuthController extends Controller
             unset($validated['current_password']);
         }
 
-        $user->update($validated);
+        $passwordChanged = isset($validated['password']);
+        DB::transaction(function () use ($user, $validated, $passwordChanged) {
+            $user->update($validated);
+            if ($passwordChanged) {
+                $user->tokens()->delete();
+            }
+        });
 
         return response()->json([
             'user' => $user->fresh(),
-            'message' => 'Profile updated successfully',
+            'message' => $passwordChanged ? 'Password updated. Please sign in again.' : 'Profile updated successfully',
+            'reauthenticate' => $passwordChanged,
         ]);
     }
 
     public function uploadProfilePhoto(Request $request): JsonResponse
     {
         $request->validate([
-            'photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048', new SafeUpload(imagesOnly: true)],
         ]);
 
         $user = $request->user();
@@ -159,9 +168,4 @@ class AuthController extends Controller
         ]);
     }
 
-    public function demoUsers(): JsonResponse
-    {
-        $users = User::select('id', 'name', 'email', 'role')->orderBy('role')->get();
-        return response()->json($users);
-    }
 }

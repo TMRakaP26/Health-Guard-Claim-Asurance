@@ -13,12 +13,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/demo-users', [AuthController::class, 'demoUsers']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'me']);
@@ -27,14 +26,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/user/photo', [AuthController::class, 'removeProfilePhoto']);
 
     // Claims
-    Route::get('/claims/unassigned', [ClaimController::class, 'unassigned']);
-    Route::get('/claims/my-assignments', [ClaimController::class, 'myAssignments']);
-    Route::post('/claims/{id}/assign', [ClaimController::class, 'assign']);
+    Route::get('/claims/unassigned', [ClaimController::class, 'unassigned'])->middleware('role:analyst');
+    Route::get('/claims/my-assignments', [ClaimController::class, 'myAssignments'])->middleware('role:analyst');
+    Route::post('/claims/{id}/assign', [ClaimController::class, 'assign'])->middleware('role:analyst');
     Route::get('/claims', [ClaimController::class, 'index']);
     Route::post('/claims', [ClaimController::class, 'store']);
     Route::get('/claims/{id}', [ClaimController::class, 'show']);
     Route::put('/claims/{id}', [ClaimController::class, 'update']);
-    Route::patch('/claims/{id}/status', [ClaimController::class, 'updateStatus']);
+    Route::patch('/claims/{id}/status', [ClaimController::class, 'updateStatus'])->middleware('role:analyst');
 
     // Documents
     Route::get('/claims/{claimId}/documents', [DocumentController::class, 'index']);
