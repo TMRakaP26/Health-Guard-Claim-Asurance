@@ -19,7 +19,14 @@ apiClient.interceptors.request.use((config) => {
 
 // Response interceptor to handle auth errors
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.data?.reauthenticate === true) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      window.location.href = '/';
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');

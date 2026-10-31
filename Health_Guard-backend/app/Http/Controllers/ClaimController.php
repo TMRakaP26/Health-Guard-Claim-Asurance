@@ -8,11 +8,14 @@ use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class ClaimController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', Claim::class);
         $user = $request->user();
 
         $query = Claim::with(['user', 'assignedAnalyst']);
@@ -50,26 +53,23 @@ class ClaimController extends Controller
 
     public function assign(Request $request, string $id): JsonResponse
     {
-        if (!$request->user()->isAnalyst()) {
-            return response()->json(['message' => 'Forbidden. Only analysts can assign claims.'], 403);
-        }
-
         $claim = Claim::where('claim_id', $id)->firstOrFail();
+        Gate::authorize('assign', $claim);
 
-        if ($claim->assigned_to !== null) {
-            return response()->json(['message' => 'This claim is already assigned to another analyst.'], 409);
-        }
-
-        $claim->update(['assigned_to' => $request->user()->id]);
-
-        // Notify the claim owner that their claim is being reviewed
-        Notification::create([
-            'user_id' => $claim->user_id,
-            'type' => 'claim_assigned',
-            'title' => 'Claim Under Review',
-            'body' => "Your claim {$claim->claim_id} is now being reviewed by an analyst.",
-            'claim_id' => $claim->claim_id,
-        ]);
+        // Conditional update is atomic on SQLite and MySQL, including competing requests.
+        DB::transaction(function () use ($request, $claim) {
+            $updated = Claim::whereKey($claim->id)->whereNull('assigned_to')
+                ->where('status', 'Pending')->update(['assigned_to' => $request->user()->id]);
+            abort_unless($updated === 1, 409, 'Only unassigned Pending claims can be assigned.');
+            $claim->refresh();
+            Notification::create([
+                'user_id' => $claim->user_id,
+                'type' => 'claim_assigned',
+                'title' => 'Claim Under Review',
+                'body' => "Your claim {$claim->claim_id} is now being reviewed by an analyst.",
+                'claim_id' => $claim->claim_id,
+            ]);
+        });
 
         return response()->json([
             'claim' => $claim->load(['user', 'assignedAnalyst']),
@@ -79,6 +79,7 @@ class ClaimController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        Gate::authorize('create', Claim::class);
         $validated = $request->validate([
             'client_name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
@@ -121,9 +122,7 @@ class ClaimController extends Controller
     {
         $claim = Claim::with(['user', 'documents', 'assignedAnalyst'])->where('claim_id', $id)->firstOrFail();
 
-        if ($request->user()->isClient() && $claim->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        Gate::authorize('view', $claim);
 
         return response()->json($claim);
     }
@@ -132,9 +131,7 @@ class ClaimController extends Controller
     {
         $claim = Claim::where('claim_id', $id)->firstOrFail();
 
-        if ($claim->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Forbidden. Only the claim owner can update this claim.'], 403);
-        }
+        Gate::authorize('update', $claim);
 
         $validated = $request->validate([
             'client_name' => 'sometimes|string|max:255',
@@ -153,11 +150,8 @@ class ClaimController extends Controller
 
     public function updateStatus(Request $request, string $id): JsonResponse
     {
-        if (!$request->user()->isAnalyst()) {
-            return response()->json(['message' => 'Forbidden. Only analysts can update status.'], 403);
-        }
-
         $claim = Claim::where('claim_id', $id)->firstOrFail();
+        Gate::authorize('decide', $claim);
 
         $validated = $request->validate([
             'status' => 'required|string|in:Pending,Approved,Rejected,Needs Info,Partially Approved',

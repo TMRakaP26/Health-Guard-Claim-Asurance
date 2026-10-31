@@ -5,6 +5,9 @@
 
     RewriteEngine On
 
+    # Legacy claim files must never bypass authenticated document endpoints.
+    RewriteRule ^storage/documents(?:/|$) - [F,L,NC]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
