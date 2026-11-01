@@ -5,7 +5,7 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 | Kelompok | Implementasi |
 |---|---|
 | SEC-01–08 | Cookie identitas saja, demo endpoint dihapus, pendaftaran client-only, role/policies, private documents, rate limits/token expiry/revocation, MIME/size validation, guarded demo seeding. |
-| DB-01–05 | MySQL8.4 Compose/pdo_mysql, healthcheck, appdata key terpisah, import SQLite tujuan kosong, backup/restore runbook dan scripts. Validasi Docker/MySQL/restore lokal masih tertahan. |
+| DB-01–05 | MySQL8.4 Compose/pdo_mysql, healthcheck, appdata key terpisah, import SQLite tujuan kosong, backup/restore runbook dan scripts. Build, smoke, import fixture, persistensi dan restore lokal lulus pada stack terpisah. |
 | HIST-01–06 | Schema immutable, transaksi create/assign/decision/resubmit/upload, API paginasi, backfill jujur/idempoten, timeline bersama untuk client/analis. |
 | TEST-01–05 | Matriks izin dan batas input, regression backend, TypeScript/ESLint/Vitest/RTL, Playwright/axe, manual QA document. |
 | UX-01–12 | Detail deep link, real filters/page/stats, loading/error/retry/toasts, draf/form/upload retry, profil nyata, Needs Info resubmit, notif navigasi, decision confirmation, IDR, responsive/native dialog, CSV/XLSX seluruh filter. |
@@ -18,18 +18,25 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Bukti lokal
 
-- Backend terakhir: **74 passed, 1 skipped**,468 asersi. Skip khusus import SQLite→MySQL karena suite lokal memakai SQLite; CI mempunyai job MySQL terpisah.
+- Verifikasi lanjutan pada **1 November 2026**, menggunakan fixture sintetis dan project Docker `healthguard-check`/`healthguard-restore` yang terpisah dari deployment aktif.
+- Backend SQLite: **74 passed, 2 skipped**, 468 asersi (76 tes). Dua skip adalah pengujian import yang memerlukan MySQL.
+- Backend MySQL 8.4/PHP 8.4: **75 passed, 1 skipped**, 483 asersi (76 tes). Skip adalah pengujian penolakan tujuan SQLite. Import fixture mempertahankan ID, hash password, assignment, nominal, dokumen, notifikasi dan histori; ID klaim berikutnya tidak bertabrakan. Sumber tidak berubah, import ulang ditolak, dan relasi tidak valid menyebabkan rollback seluruh import.
 - Typecheck, ESLint, Vitest/RTL5tes, cookie security5tes, dan production build lulus.
 - Playwright terakhir: **2 passed**, exit0; alur client–Needs Info–resubmit–analyst approval, deep link/reload, draf/resume, ID/EN. Axe pada login, daftar klaim mobile, dan dialog keputusan tidak menemukan pelanggaran.
-- Pint check lulus. Syntax PHP smoke/restore-check serta parsing PowerShell backup/restore lulus.
+- Docker build dan HTTP smoke lulus: autentikasi, histori, upload/download privat, penolakan URL dokumen publik dan pembatasan role.
+- Uji proses MySQL bersamaan lulus: empat klien menghasilkan ID klaim unik; dua analis menghasilkan tepat satu assignment dan satu event histori. EXPLAIN menunjukkan indeks pemilik/tanggal tersedia.
+- Pembuatan ulang container (`down` lalu `up`, tanpa menghapus volume) mempertahankan database, file privat dan key. Fixture terenkripsi masih dapat dibaca, lalu smoke lulus kembali.
+- Backup dan restore ke stack disposable lulus; fixture terenkripsi dan isi file cocok, lalu smoke pada hasil restore lulus. Masalah restart yang menunggu readiness saat maintenance telah diperbaiki dengan `restart --no-deps`.
+- Backup mempertahankan maintenance yang sudah aktif. Manifest tidak lengkap, duplikat atau checksum salah ditolak sebelum Docker dipanggil. Parsing PowerShell, pengujian negatif backup, dan Pint lulus.
+- Workflow CI diperluas dengan uji concurrency MySQL, persistensi setelah pembuatan ulang container, validasi backup, dan smoke setelah restore.
 - Tidak ada migrasi/penghapusan data deployment utama dilakukan.
 
 ## Verifikasi yang belum boleh dianggap selesai
 
-1. Build dan smoke stack MySQL8.4 terbaru, import salinan SQLite, restart persistence/key, serta uji backup/restore disposable. Pemeriksaan Docker diblokir karena automatic approval review tidak selesai akibat batas penggunaan layanan; bukan bukti kegagalan kode ataupun penilaian tidak aman.
-2. Menjalankan workflow CI di runner GitHub (file sudah tersedia; belum ada bukti run remote).
-3. Manual screen-reader audit NVDA/VoiceOver dan penerimaan desain bisnis.
-4. SMTP eksternal, kebijakan retensi/durasi, data provider/polis nyata, serta pencatatan pembayaran operasional perlu konfigurasi pengelola. Fitur tersedia tetapi default email/retention nonaktif.
-5. EXPLAIN dan uji contention MySQL skala produksi perlu lingkungan MySQL. Locking dan transactional rollback diuji secara lokal; SQLite tidak membuktikan locking InnoDB.
+1. Menjalankan workflow CI di runner GitHub, termasuk PowerShell 7 Linux (file sudah tersedia; belum ada bukti run remote). Skrip backup/restore lokal telah dijalankan dengan Windows PowerShell 5.1.
+2. Manual screen-reader audit NVDA/VoiceOver dan penerimaan desain bisnis.
+3. SMTP eksternal, kebijakan retensi/durasi, data provider/polis nyata, serta pencatatan pembayaran operasional perlu konfigurasi pengelola. Fitur tersedia tetapi default email/retention nonaktif.
+4. Benchmark dan penilaian query pada volume data produksi. Uji contention InnoDB dasar dan ketersediaan indeks sudah lulus, tetapi tidak membuktikan kapasitas produksi.
+5. Cutover data operasional: import dan restore telah diuji memakai fixture sintetis. Rekonsiliasi jumlah record dan file dari backup data nyata tetap perlu dilakukan pada maintenance window sebelum migrasi deployment aktif.
 
-Jangan menandai seluruh Definition of Done sumber sebagai selesai sebelum pemeriksaan infrastruktur dan manual di atas dilaksanakan. Script dan CI disiapkan supaya langkah yang tersisa dapat dijalankan tanpa mengubah data deployment aktif.
+Jangan menandai seluruh Definition of Done sumber sebagai selesai sebelum pemeriksaan manual, CI remote, dan kesiapan operasional di atas dilaksanakan. Tidak ada migrasi atau pemulihan yang dijalankan pada database deployment aktif.

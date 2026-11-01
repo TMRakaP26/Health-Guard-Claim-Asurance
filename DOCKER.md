@@ -35,7 +35,9 @@ Rollback sebelum cutover: hentikan stack baru dan arahkan traffic ke deployment 
 ./docker/restore.ps1 -Project healthguard-restore -BackupDirectory backups/20261101-120000 -ConfirmRestore
 ```
 
-Backup sementara mengaktifkan maintenance, menjalankan mysqldump, mengarsipkan storage/app dan key, lalu membuat checksum. SQL tidak dialirkan melalui encoding PowerShell. Restore menolak nama project produksi default, memerlukan konfirmasi eksplisit, dan ditujukan ke stack disposable yang telah dijalankan dengan konfigurasi/key kompatibel. Kegagalan restore membiarkan maintenance aktif untuk investigasi.
+Backup sementara mengaktifkan maintenance, menjalankan mysqldump, mengarsipkan storage/app dan key, lalu membuat checksum. Jika maintenance sudah aktif, backup mempertahankannya. Folder backup yang sudah ada tidak ditimpa. SQL tidak dialirkan melalui encoding PowerShell; perintah shell dikirim lewat stdin agar quoting konsisten pada Windows PowerShell 5.1 dan PowerShell 7.
+
+Restore memvalidasi tepat dua entri checksum unik (`database.sql` dan `files.tar.gz`) sebelum mengubah tujuan. Script menolak nama project produksi default, memerlukan konfirmasi eksplisit, dan ditujukan ke stack disposable yang telah dijalankan dengan konfigurasi/key kompatibel. Restart backend memakai `--no-deps`, sehingga Compose tidak menunggu healthcheck dependensi saat maintenance masih aktif. Kegagalan restore mengaktifkan kembali maintenance untuk investigasi; jika container tidak bisa menerima perintah, tujuan harus tetap terisolasi.
 
 Gunakan backup set lengkap dari deployment yang sama. Jangan restore ke storage yang sudah berisi file lain: gunakan volume kosong untuk menghindari berkas sisa. SQL dump dapat mengganti tabel; hanya gunakan project tujuan yang benar. APP_KEY dalam env tujuan harus kosong atau sama dengan key backup sebelum restart. Setelah restore, jalankan smoke dan bandingkan jumlah record, hash dokumen, serta login 2FA. Backup mengandung data privat dan key: enkripsi salinan offsite, batasi akses, serta tetapkan rotasi harian dan uji restore berkala menurut kebutuhan organisasi. Script belum menggantikan layanan backup terkelola.
 
@@ -44,9 +46,15 @@ Gunakan backup set lengkap dari deployment yang sama. Jangan restore ke storage 
 ```sh
 docker compose -p healthguard-check cp docker/smoke.php backend:/tmp/healthguard-smoke.php
 docker compose -p healthguard-check exec -T backend php /tmp/healthguard-smoke.php
+docker compose -p healthguard-check cp docker/mysql-check.php backend:/tmp/mysql-check.php
+docker compose -p healthguard-check exec -T backend php /tmp/mysql-check.php
 ```
 
 Smoke mengharuskan MySQL, memakai HTTP melalui Nginx, memeriksa histori, menolak public URL dokumen, lalu membersihkan hanya data yang dibuatnya. Jalankan pada stack terisolasi dengan port/env berbeda sebelum upgrade deployment aktif.
+
+`mysql-check.php` mensyaratkan `APP_ENV=testing` dan MySQL. Script menjalankan pembuatan klaim oleh empat klien secara bersamaan, assignment oleh dua analis dengan tepat satu pemenang, pemeriksaan histori, serta EXPLAIN untuk ketersediaan indeks pemilik/tanggal. Ini pemeriksaan contention dasar, bukan benchmark beban produksi.
+
+`./docker/backup-safety-check.ps1` menguji penolakan manifest tidak lengkap, duplikat, dan checksum salah tanpa memanggil Docker. CI juga membuat fixture berisi data terenkripsi dan file privat, membuat ulang container tanpa menghapus volume, lalu memulihkan backup ke stack berbeda dan menjalankan smoke kembali. Hasil verifikasi lokal dicatat di [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
 
 ## Produksi
 

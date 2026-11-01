@@ -97,16 +97,26 @@ jobs:
       - run: docker compose -p healthguard-ci up -d --build --wait
       - run: docker compose -p healthguard-ci cp docker/smoke.php backend:/tmp/healthguard-smoke.php
       - run: docker compose -p healthguard-ci exec -T backend php /tmp/healthguard-smoke.php
-      - run: docker compose -p healthguard-ci restart backend
-      - run: docker compose -p healthguard-ci up -d --wait
-      - run: docker compose -p healthguard-ci exec -T backend php /tmp/healthguard-smoke.php
+      - name: Verify concurrent MySQL writes and index availability
+        run: |
+          docker compose -p healthguard-ci cp docker/mysql-check.php backend:/tmp/mysql-check.php
+          docker compose -p healthguard-ci exec -T backend php /tmp/mysql-check.php
       - name: Prepare restore fixture
         run: |
           docker compose -p healthguard-ci cp docker/restore-check.php backend:/tmp/restore-check.php
           docker compose -p healthguard-ci exec -T backend php /tmp/restore-check.php prepare
+      - name: Verify persistence after container recreation
+        run: |
+          docker compose -p healthguard-ci down
+          docker compose -p healthguard-ci up -d --wait
+          docker compose -p healthguard-ci cp docker/restore-check.php backend:/tmp/restore-check.php
+          docker compose -p healthguard-ci exec -T backend php /tmp/restore-check.php verify
       - name: Backup consistent database, storage and key
         shell: pwsh
         run: ./docker/backup.ps1 -Project healthguard-ci
+      - name: Reject invalid backups before changing the target
+        shell: pwsh
+        run: ./docker/backup-safety-check.ps1
       - name: Start disposable restore target
         run: HEALTHGUARD_PORT=18090 docker compose -p healthguard-restore up -d --wait
       - name: Restore into disposable target
@@ -119,6 +129,8 @@ jobs:
         run: |
           docker compose -p healthguard-restore cp docker/restore-check.php backend:/tmp/restore-check.php
           docker compose -p healthguard-restore exec -T backend php /tmp/restore-check.php verify
+          docker compose -p healthguard-restore cp docker/smoke.php backend:/tmp/healthguard-smoke.php
+          docker compose -p healthguard-restore exec -T backend php /tmp/healthguard-smoke.php
       - run: docker compose -p healthguard-restore down --volumes
         if: always()
       - run: docker compose -p healthguard-ci down --volumes
