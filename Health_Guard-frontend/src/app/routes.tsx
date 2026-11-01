@@ -1,53 +1,67 @@
-import { createBrowserRouter } from "react-router";
-import { Layout } from "./components/Layout";
-import { AnalystLayout } from "./components/AnalystLayout";
-import { ProtectedRoute } from "./components/ProtectedRoute";
-import { Dashboard } from "./pages/Dashboard";
-import { ClientClaimForm } from "./pages/ClientClaimForm";
-import { AnalystDashboard } from "./pages/AnalystDashboard";
-import { AnalystReview } from "./pages/AnalystReview";
-import { EmptyState } from "./pages/EmptyState";
-import { Guide } from "./pages/Guide";
-import { Profile } from "./pages/Profile";
-import { Settings } from "./pages/Settings";
-import { Login } from "./pages/Login";
-import { Register } from "./pages/Register";
-import { UnassignedClaims } from "./pages/UnassignedClaims";
-import { MyAssignments } from "./pages/MyAssignments";
-
+import { createBrowserRouter, Link, Navigate, useParams } from "react-router";
+import { AuthPage } from "./portal/AuthPage";
+import { Shell, Guide, Notifications } from "./portal/Shell";
+import { ClaimList } from "./portal/ClaimList";
+import { ClaimDetail } from "./portal/ClaimDetail";
+import { ClaimForm, Drafts } from "./portal/ClaimForm";
+import { Profile, VerifyEmail } from "./portal/Profile";
+import { Admin, Analytics } from "./portal/Admin";
+function LegacyReview() {
+  const { id } = useParams();
+  return <Navigate to={"/claims/" + id} replace />;
+}
 export const router = createBrowserRouter([
+  ...[
+    "/",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/accept-invitation",
+  ].map((path) => ({ path, Component: AuthPage })),
   {
-    path: "/",
-    Component: Login,
-  },
-  {
-    path: "/register",
-    Component: Register,
-  },
-  {
-    path: "/client",
-    element: <ProtectedRoute role="client" />,
+    Component: Shell,
     children: [
-      { Component: Layout, children: [
-        { index: true, Component: Dashboard },
-        { path: "guide", Component: Guide },
-        { path: "submit", Component: ClientClaimForm },
-        { path: "profile", Component: Profile },
-      ]},
+      { path: "/claims", Component: ClaimList },
+      { path: "/claims/new", Component: ClaimForm },
+      { path: "/claims/:id", Component: ClaimDetail },
+      { path: "/claims/:id/edit", Component: ClaimForm },
+      { path: "/drafts", Component: Drafts },
+      { path: "/notifications", Component: Notifications },
+      { path: "/profile", Component: Profile },
+      { path: "/guide", Component: Guide },
+      { path: "/analytics", Component: Analytics },
+      { path: "/admin", Component: Admin },
+      { path: "/verify-email", Component: VerifyEmail },
+      { path: "/client", element: <Navigate to="/claims" replace /> },
+      {
+        path: "/client/submit",
+        element: <Navigate to="/claims/new" replace />,
+      },
+      { path: "/client/profile", element: <Navigate to="/profile" replace /> },
+      { path: "/client/guide", element: <Navigate to="/guide" replace /> },
+      { path: "/analyst", element: <Navigate to="/claims" replace /> },
+      { path: "/analyst/review/:id", Component: LegacyReview },
+      {
+        path: "/analyst/settings",
+        element: <Navigate to="/profile" replace />,
+      },
+      {
+        path: "/analyst/unassigned",
+        element: <Navigate to="/claims?scope=unassigned" replace />,
+      },
+      {
+        path: "/analyst/assignments",
+        element: <Navigate to="/claims?scope=assigned" replace />,
+      },
     ],
   },
   {
-    path: "/analyst",
-    element: <ProtectedRoute role="analyst" />,
-    children: [
-      { Component: AnalystLayout, children: [
-        { index: true, Component: AnalystDashboard },
-        { path: "review/:id", Component: AnalystReview },
-        { path: "unassigned", Component: UnassignedClaims },
-        { path: "assignments", Component: MyAssignments },
-        { path: "settings", Component: Settings },
-      ]},
-    ],
+    path: "*",
+    element: (
+      <main className="main">
+        <h1>404</h1>
+        <Link to="/claims">HealthGuard</Link>
+      </main>
+    ),
   },
-  { path: "*", element: <EmptyState title="Not Found" /> },
 ]);

@@ -1,14 +1,15 @@
 import { RouterProvider } from "react-router";
-import { router } from "./routes";
-import { ClaimProvider } from "./state/ClaimContext";
+import { Toaster } from "sonner";
 import { AuthProvider } from "./state/AuthContext";
-
+import { LocaleProvider } from "./portal/locale";
+import { router } from "./routes";
 export default function App() {
   return (
-    <AuthProvider>
-      <ClaimProvider>
+    <LocaleProvider>
+      <AuthProvider>
         <RouterProvider router={router} />
-      </ClaimProvider>
-    </AuthProvider>
+        <Toaster richColors closeButton />
+      </AuthProvider>
+    </LocaleProvider>
   );
 }

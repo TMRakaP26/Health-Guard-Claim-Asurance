@@ -4,6 +4,9 @@
 require '/var/www/html/vendor/autoload.php';
 $app = require '/var/www/html/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+if (Illuminate\Support\Facades\DB::getDriverName() !== 'mysql') {
+    throw new RuntimeException('Smoke test requires the MySQL runtime.');
+}
 
 function request(string $method, string $path, int $expected, ?array $data = null, ?string $token = null, ?string $raw = null, string $contentType = 'application/json'): array
 {
@@ -48,6 +51,10 @@ try {
     ], $token);
     $claimId = $claim['claim_id'];
     request('GET', '/api/claims/'.$claimId, 200, null, $token);
+    $history = request('GET', '/api/claims/'.$claimId.'/history', 200, null, $token);
+    if (($history['data'][0]['event'] ?? null) !== 'submitted') {
+        throw new RuntimeException('Submission history missing.');
+    }
     $boundary = 'healthguard'.bin2hex(random_bytes(12));
     $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=');
     $multipart = "--{$boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"smoke.png\"\r\nContent-Type: image/png\r\n\r\n".$png."\r\n--{$boundary}--\r\n";

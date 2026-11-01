@@ -5,3 +5,4 @@ backups/
 artifacts/
 playwright-report/
 test-results/
+.cache/

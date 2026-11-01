@@ -1,88 +1,61 @@
-# HealthGuard di Docker Desktop
+# Docker, migrasi, backup dan pemulihan
 
-Gunakan Docker Desktop dengan Linux containers. Jalankan perintah dari folder `C:\RAKA\Healtguard`:
+## Instalasi baru
 
-```powershell
-docker compose up -d --build --wait
-```
+1. Salin root `.env.example` ke `.env`. Untuk produksi, set `APP_ENV=production`, `PUBLIC_URL=https://nama-host`, password DB/root unik dan kuat (minimal 16 karakter untuk DB).
+2. `docker compose up -d --build --wait`.
+3. Buat admin: `docker compose exec backend php artisan healthguard:create-admin admin@example.test --name="Administrator"`.
+4. Buka localhost:8080. Port hanya bind loopback; gunakan reverse proxy TLS untuk akses publik.
 
-Buka **http://localhost:8080**. Stack `healthguard` juga muncul di tab Containers Docker Desktop.
+Volume: `dbdata` (MySQL), `appdata` (APP_KEY), `storage` (dokumen/foto). APP_KEY dibuat sekali dan dipertahankan saat restart. APP_KEY eksplisit yang berbeda dengan key tersimpan menyebabkan startup ditolak. Jangan membuat key baru saat memulihkan database dengan data 2FA terenkripsi.
 
-Frontend React dibangun dengan Node 22 lalu dilayani Nginx. Backend menggunakan PHP 8.4/Apache dan Laravel. Nginx meneruskan `/api/` dan `/storage/` ke backend; `/storage/documents/` diblokir dengan 404. Dokumen klaim hanya dilayani melalui API terautentikasi. Foto profil tetap publik. Laravel menjalankan migrasi skema otomatis saat backend dimulai. Queue menggunakan `sync`.
+Backend memasang pdo_mysql dan pdo_sqlite (untuk import/test), tetapi Compose memakai MySQL 8.4. DB healthcheck menjalankan SELECT 1 dengan akun aplikasi; backend `/health/ready` memeriksa koneksi database. `/up` adalah liveness dan frontend `/healthz` hanya liveness Nginx.
 
-## Database dan akun
+## Upgrade dari SQLite lama
 
-Database SQLite, kunci aplikasi, dan file unggahan disimpan di named volumes `healthguard_database` dan `healthguard_storage`. Database container dimulai kosong; database, `.env`, dan unggahan di folder lokal tidak disalin atau diubah. Buat akun melalui **Create Account**.
+Jangan jalankan `down -v` atau menghapus volume `healthguard_database`. Siapkan maintenance window dan verifikasi backup terlebih dahulu.
 
-Untuk akun analis non-demo, gunakan `docker compose exec backend php artisan healthguard:create-analyst`. Password diminta secara tersembunyi, bukan melalui argumen shell.
+1. Hentikan penulisan melalui deployment lama (`php artisan down`). Ambil snapshot SQLite yang konsisten setelah koneksi penulis berhenti; jangan hanya menyalin database ketika WAL masih aktif. Gunakan SQLite backup API atau salin database bersama WAL/SHM dalam keadaan berhenti.
+2. Simpan key lama dari volume database, seluruh storage, dan salinan DB di lokasi backup berakses terbatas. Catat checksum dan jumlah record.
+3. Mulai stack **terpisah**, misalnya `docker compose -p healthguard-migration --env-file .env.migration up -d --build --wait`, dengan port berbeda. Isi APP_KEY menggunakan key lama; jangan menaruh key di command line/log.
+4. Salin backup DB ke backend baru:
+   `docker compose -p healthguard-migration cp backups/legacy.sqlite backend:/tmp/legacy.sqlite`.
+5. Jalankan `docker compose -p healthguard-migration exec backend php artisan healthguard:import-sqlite /tmp/legacy.sqlite`.
+   Import menolak tujuan yang sudah berisi record, mempertahankan ID/hash password/relasi dan memakai transaksi. Sumber dibuka query-only. API token, reset token, cache, dan sesi tidak dipindahkan: pengguna harus login kembali. Backfill mencatat snapshot historis tanpa mengarang keputusan yang tidak tersedia.
+6. Pulihkan storage lama ke volume storage baru; jalankan `php artisan healthguard:privatize-documents` di backend baru. Command memeriksa checksum dan memindahkan dokumen dari public ke private secara idempoten.
+7. Bandingkan jumlah users/claims/documents, ID klaim dan FK. Login klien/analis, download dokumen, cek histori, buat klaim baru. Jalankan smoke.
+8. Alihkan reverse proxy setelah verifikasi. Pertahankan backup/deployment lama dalam keadaan tidak menerima penulisan selama periode rollback.
 
-Opsional, hanya untuk demo lokal pada database baru yang belum memiliki akun demo, jalankan seeder sekali:
+Rollback sebelum cutover: hentikan stack baru dan arahkan traffic ke deployment lama. Setelah data baru ditulis, jangan sekadar mengalihkan ke SQLite lama: rekonsiliasi perubahan dan lakukan pemulihan sesuai insiden.
 
-```powershell
-docker compose exec backend php artisan db:seed --force
-```
-
-Seeder bawaan menyediakan `analyst@healthguard.com` dan `client@healthguard.com`, keduanya dengan password `password`. Seeder tidak idempotent; jangan dijalankan berulang pada data yang sama.
-
-## Upgrade keamanan P0
-
-Database tetap SQLite pada tahap ini. Backup volume database dan storage sebelum upgrade. Jangan menjalankan seeder demo pada produksi. `APP_DEBUG` pada Compose harus tetap `false`.
-
-Untuk instalasi lama, hentikan akses frontend selama memindahkan dokumen:
-
-```powershell
-docker compose stop frontend
-docker compose up -d --build --wait backend
-docker compose exec -T backend php artisan healthguard:privatize-documents
-# Lanjutkan hanya setelah command di atas keluar dengan kode 0.
-docker compose up -d --build --wait frontend
-```
-
-Command menyalin file dari `storage/app/public/documents` ke `storage/app/private/documents`, membandingkan SHA-256, lalu menghapus salinan publik hanya jika cocok. Path relatif pada tabel tetap sama; tidak ada perubahan skema. Aman dijalankan ulang. File hilang, path tak terduga, atau konflik isi menghasilkan exit code 1; pertahankan maintenance sampai diselesaikan. Command tidak memindahkan file lain atau foto profil. Periksa juga backup publik/orphan file sebelum membuka traffic.
-
-Untuk mode lokal `php artisan serve`, hentikan server dahulu, jalankan `php artisan healthguard:privatize-documents`, lalu mulai kembali. PHP development server dapat menyajikan file lama langsung jika file belum dipindahkan; aturan Apache/Nginx tidak berlaku pada server tersebut.
-
-Token secara default berlaku 480 menit. Override `SANCTUM_TOKEN_EXPIRATION` melalui environment backend bila diperlukan dan rebuild cache konfigurasi. Login gagal berulang menghasilkan 429; ubah password akan mengakhiri semua sesi. Kontrak akses ada di [README](README.md#keamanan-p0).
-
-## Operasional
+## Backup dan restore (PowerShell)
 
 ```powershell
-# Status dan log
-docker compose ps
-docker compose logs --tail=100 backend frontend
-
-# Terapkan perubahan kode
-docker compose up -d --build --wait
-
-# Hentikan container, pertahankan data
-docker compose down
-
-# Jalankan lagi
-docker compose up -d --wait
+./docker/backup.ps1 -Project healthguard
+./docker/restore.ps1 -Project healthguard-restore -BackupDirectory backups/20261101-120000 -ConfirmRestore
 ```
 
-Jangan tambahkan `--volumes`/`-v` pada `down` jika ingin mempertahankan data. Kode dibundel ke image, jadi perubahan kode membutuhkan rebuild. Dependensi di host (`vendor`, `node_modules`) tidak diperlukan untuk build Docker.
+Backup sementara mengaktifkan maintenance, menjalankan mysqldump, mengarsipkan storage/app dan key, lalu membuat checksum. SQL tidak dialirkan melalui encoding PowerShell. Restore menolak nama project produksi default, memerlukan konfirmasi eksplisit, dan ditujukan ke stack disposable yang telah dijalankan dengan konfigurasi/key kompatibel. Kegagalan restore membiarkan maintenance aktif untuk investigasi.
 
-Untuk mengganti port di PowerShell:
+Gunakan backup set lengkap dari deployment yang sama. Jangan restore ke storage yang sudah berisi file lain: gunakan volume kosong untuk menghindari berkas sisa. SQL dump dapat mengganti tabel; hanya gunakan project tujuan yang benar. APP_KEY dalam env tujuan harus kosong atau sama dengan key backup sebelum restart. Setelah restore, jalankan smoke dan bandingkan jumlah record, hash dokumen, serta login 2FA. Backup mengandung data privat dan key: enkripsi salinan offsite, batasi akses, serta tetapkan rotasi harian dan uji restore berkala menurut kebutuhan organisasi. Script belum menggantikan layanan backup terkelola.
 
-```powershell
-$env:HEALTHGUARD_PORT = '8081'
-docker compose up -d --wait
+## Smoke dan pengujian terisolasi
+
+```sh
+docker compose -p healthguard-check cp docker/smoke.php backend:/tmp/healthguard-smoke.php
+docker compose -p healthguard-check exec -T backend php /tmp/healthguard-smoke.php
 ```
 
-Akses kemudian melalui http://localhost:8081. Port hanya diikat ke loopback komputer lokal.
+Smoke mengharuskan MySQL, memakai HTTP melalui Nginx, memeriksa histori, menolak public URL dokumen, lalu membersihkan hanya data yang dibuatnya. Jalankan pada stack terisolasi dengan port/env berbeda sebelum upgrade deployment aktif.
 
-## Verifikasi integrasi
+## Produksi
 
-Setelah container sehat, jalankan smoke test melalui Nginx:
-
-```powershell
-docker compose cp ./docker/smoke.php backend:/tmp/healthguard-smoke.php
-docker compose exec -T backend php /tmp/healthguard-smoke.php
-```
-
-Pemeriksaan mencakup routing SPA, registrasi, login, otorisasi token, klaim, unggah/unduh dokumen, penolakan URL dokumen publik, penolakan queue analis bagi client, penghapusan demo-users, notifikasi, dan logout. Akun, klaim, serta unggahan sementara dibersihkan setelah pemeriksaan.
-
-Jika Docker tidak dapat tersambung, buka Docker Desktop dan tunggu Linux engine siap. Jika build pertama gagal mengunduh image/dependensi, periksa koneksi internet Docker Desktop lalu ulangi perintah build.
-
-Startup memakai healthcheck sebelum menjalankan frontend, mengikuti [panduan Docker Compose](https://docs.docker.com/compose/how-tos/startup-order/).
+- TLS di reverse proxy; set PUBLIC_URL sama dengan origin browser agar link verifikasi bertanda tangan benar.
+- Set TRUSTED_PROXIES hanya IP/CIDR proxy tepercaya dan TRUSTED_HOSTS daftar hostname dipisah koma. Jangan mempercayai semua sumber.
+- APP_DEBUG=false; Compose menolak password DB contoh pada APP_ENV=production.
+- Batasi akses backup, Docker daemon, key, dan storage. MySQL tidak dipublish ke host.
+- Log API terstruktur memuat request ID, metode, template route, status, durasi; tidak mencatat body/token. Log container dirotasi 10 MB × 3. Hubungkan stderr ke observabilitas organisasi; jangan menyalakan debug request/SQL pada data medis.
+- Apache master memerlukan root untuk port/permission; worker berjalan sebagai www-data. Volume aplikasi tertentu harus writable. Deployment ini belum memakai filesystem read-only menyeluruh.
+- Jalankan purge dengan scheduler organisasi hanya setelah kebijakan retensi disetujui; default tidak menjadwalkan penghapusan.
+- FEATURE_EMAIL + SMTP diperlukan untuk reset/verifikasi email. MAIL_MAILER=array untuk pengembangan tidak mengirim email nyata. Profile mail-dev menyediakan Mailpit lokal port8025; atur MAIL_MAILER=smtp, MAIL_HOST=mailpit, MAIL_PORT=1025, FEATURE_EMAIL=true.
+- FEATURE_REALTIME=false mempertahankan polling30detik. SSE opsional memakai autentikasi bearer di header dan koneksi berdurasi pendek. Kapasitas worker harus ditinjau sebelum mengaktifkannya untuk banyak pengguna.

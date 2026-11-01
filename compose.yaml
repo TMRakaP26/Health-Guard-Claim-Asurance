@@ -29,8 +29,10 @@ services:
       APP_NAME: HealthGuard
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: "false"
-      APP_URL: http://localhost:${HEALTHGUARD_PORT:-8080}
-      FRONTEND_URL: http://localhost:${HEALTHGUARD_PORT:-8080}
+      APP_URL: ${PUBLIC_URL:-http://localhost:8080}
+      FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-}
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
@@ -41,6 +43,8 @@ services:
       SANCTUM_TOKEN_EXPIRATION: ${SANCTUM_TOKEN_EXPIRATION:-480}
       DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
       FEATURE_EMAIL: ${FEATURE_EMAIL:-false}
+      FEATURE_REALTIME: ${FEATURE_REALTIME:-false}
+      CLAIM_SLA_HOURS: ${CLAIM_SLA_HOURS:-72}
       FEATURE_PAYMENTS: ${FEATURE_PAYMENTS:-true}
       FEATURE_MESSAGES: ${FEATURE_MESSAGES:-true}
       FEATURE_RETENTION: ${FEATURE_RETENTION:-false}
@@ -48,6 +52,7 @@ services:
       MAIL_MAILER: ${MAIL_MAILER:-array}
       MAIL_HOST: ${MAIL_HOST:-mailpit}
       MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_SCHEME: ${MAIL_SCHEME:-smtp}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-healthguard@example.test}

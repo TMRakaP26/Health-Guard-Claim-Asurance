@@ -21,6 +21,13 @@ class ClaimHistory extends Model
         static::deleting(fn () => throw new LogicException('Claim history is immutable; only a parent retention deletion may cascade.'));
     }
 
-    public function actor(): BelongsTo { return $this->belongsTo(User::class, 'actor_id'); }
-    public function claim(): BelongsTo { return $this->belongsTo(Claim::class); }
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actor_id');
+    }
+
+    public function claim(): BelongsTo
+    {
+        return $this->belongsTo(Claim::class);
+    }
 }

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Claim;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Artisan;
 
 class DatabaseSeeder extends Seeder
 {
@@ -76,7 +77,7 @@ class DatabaseSeeder extends Seeder
         foreach ($claims as $claimData) {
             Claim::firstOrCreate(['claim_id' => $claimData['claim_id']], $claimData);
         }
-        $this->call(\Database\Seeders\CatalogSeeder::class);
-        \Illuminate\Support\Facades\Artisan::call('healthguard:backfill-history');
+        $this->call(CatalogSeeder::class);
+        Artisan::call('healthguard:backfill-history');
     }
 }

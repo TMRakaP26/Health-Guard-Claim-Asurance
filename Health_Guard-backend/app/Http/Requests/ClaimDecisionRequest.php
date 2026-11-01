@@ -1,15 +1,19 @@
 <?php
+
 namespace App\Http\Requests;
+
 use App\Enums\ClaimStatus;
 use App\Models\Claim;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+
 class ClaimDecisionRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return $this->user()?->can('decide', Claim::where('claim_id', $this->route('id'))->firstOrFail()) ?? false;
     }
+
     public function rules(): array
     {
         return [

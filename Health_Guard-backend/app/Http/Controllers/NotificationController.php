@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\NotificationResource;
 use App\Models\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ class NotificationController extends Controller
             ->orderByDesc('id')
             ->paginate(min((int) $request->get('per_page', 20), 50));
 
-        return response()->json(array_merge($notifications->toArray(), ['data' => \App\Http\Resources\NotificationResource::collection($notifications->getCollection())->resolve()]));
+        return response()->json(array_merge($notifications->toArray(), ['data' => NotificationResource::collection($notifications->getCollection())->resolve()]));
     }
 
     public function unreadCount(Request $request): JsonResponse
@@ -31,15 +32,22 @@ class NotificationController extends Controller
     public function stream(Request $request)
     {
         abort_unless(config('healthguard.features.realtime'), 404);
+
         return response()->stream(function () use ($request) {
             $until = time() + 20;
             do {
                 $user = $request->user()->fresh();
                 $token = $request->user()->currentAccessToken();
-                if (! $user?->is_active || ! $user->tokens()->whereKey($token->id)->exists()) { break; }
+                if (! $user?->is_active || ! $user->tokens()->whereKey($token->id)->exists()) {
+                    break;
+                }
                 echo 'data: '.json_encode(['count' => Notification::where('user_id', $user->id)->where('is_read', false)->count()])."\n\n";
-                if (ob_get_level()) { ob_flush(); } flush();
-                if (connection_aborted()) { break; } sleep(3);
+                if (ob_get_level()) {
+                    ob_flush();
+                } flush();
+                if (connection_aborted()) {
+                    break;
+                } sleep(3);
             } while (time() < $until);
         }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-store', 'X-Accel-Buffering' => 'no']);
     }

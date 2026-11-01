@@ -1,18 +1,18 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ClaimController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\NotificationController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\CollaborationController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DraftController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RetentionController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------

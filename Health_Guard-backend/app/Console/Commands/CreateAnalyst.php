@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 class CreateAnalyst extends Command
 {
     protected string $role = 'analyst';
+
     protected $signature = 'healthguard:create-analyst';
 
     protected $description = 'Create an analyst through a trusted interactive terminal';

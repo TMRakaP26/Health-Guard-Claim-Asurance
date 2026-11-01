@@ -1,12 +1,20 @@
 <?php
+
 namespace App\Http\Requests;
+
 use Illuminate\Foundation\Http\FormRequest;
+
 class ClaimInputRequest extends FormRequest
 {
-    public function authorize(): bool { return $this->user()?->isClient() ?? false; }
+    public function authorize(): bool
+    {
+        return $this->user()?->isClient() ?? false;
+    }
+
     public function rules(): array
     {
         $required = $this->isMethod('POST') ? 'required' : 'sometimes';
+
         return [
             'client_name' => "$required|string|max:255", 'type' => "$required|string|max:255",
             'provider_name' => "$required|string|max:255",

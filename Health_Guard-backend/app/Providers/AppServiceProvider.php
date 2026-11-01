@@ -6,8 +6,11 @@ use App\Models\Claim;
 use App\Models\Document;
 use App\Policies\ClaimPolicy;
 use App\Policies\DocumentPolicy;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -27,9 +30,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Auth\Notifications\ResetPassword::createUrlUsing(fn ($user, $token) => rtrim(config('healthguard.frontend_url'), '/').'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email));
-        \Illuminate\Auth\Notifications\VerifyEmail::toMailUsing(function ($user, $url) {
-            return (new \Illuminate\Notifications\Messages\MailMessage)->subject('Verify your HealthGuard email')
+        ResetPassword::createUrlUsing(fn ($user, $token) => rtrim(config('healthguard.frontend_url'), '/').'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email));
+        VerifyEmail::toMailUsing(function ($user, $url) {
+            return (new MailMessage)->subject('Verify your HealthGuard email')
                 ->line('Confirm your email address to complete your account.')
                 ->action('Verify email', rtrim(config('healthguard.frontend_url'), '/').'/verify-email?url='.urlencode($url));
         });

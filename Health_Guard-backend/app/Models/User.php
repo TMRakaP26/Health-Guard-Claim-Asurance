@@ -10,7 +10,8 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     protected $attributes = ['is_active' => true, 'locale' => 'id'];
-    use HasFactory, Notifiable, HasApiTokens;
+
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
@@ -67,6 +68,13 @@ class User extends Authenticatable
         return $this->role === 'client';
     }
 
-    public function isAdmin(): bool { return $this->role === 'admin'; }
-    public function assignments() { return $this->hasMany(Claim::class, 'assigned_to'); }
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function assignments()
+    {
+        return $this->hasMany(Claim::class, 'assigned_to');
+    }
 }

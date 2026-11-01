@@ -1,0 +1,126 @@
+name: HealthGuard checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, mysql]
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: healthguard_test
+          MYSQL_ROOT_PASSWORD: ci-disposable-password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-disposable-password"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    defaults:
+      run:
+        working-directory: Health_Guard-backend
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'mysql' && 'healthguard_test' || ':memory:' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-disposable-password
+      DB_URL: ''
+      CACHE_STORE: array
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, pdo_sqlite, zip
+      - run: composer install --no-interaction --prefer-dist
+      - run: php vendor/bin/pint --test
+      - run: php artisan test
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Health_Guard-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Health_Guard-frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:security
+      - run: npm run build
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: composer install --no-interaction --prefer-dist
+        working-directory: Health_Guard-backend
+      - run: npm ci
+        working-directory: Health_Guard-frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: Health_Guard-frontend
+      - run: npm run test:e2e
+        working-directory: Health_Guard-frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: Health_Guard-frontend/playwright-report
+          retention-days: 7
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ci-isolated-database-password
+      DB_ROOT_PASSWORD: ci-isolated-root-password
+      HEALTHGUARD_PORT: '18089'
+      PUBLIC_URL: http://localhost:18089
+      APP_ENV: testing
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -p healthguard-ci up -d --build --wait
+      - run: docker compose -p healthguard-ci cp docker/smoke.php backend:/tmp/healthguard-smoke.php
+      - run: docker compose -p healthguard-ci exec -T backend php /tmp/healthguard-smoke.php
+      - run: docker compose -p healthguard-ci restart backend
+      - run: docker compose -p healthguard-ci up -d --wait
+      - run: docker compose -p healthguard-ci exec -T backend php /tmp/healthguard-smoke.php
+      - name: Prepare restore fixture
+        run: |
+          docker compose -p healthguard-ci cp docker/restore-check.php backend:/tmp/restore-check.php
+          docker compose -p healthguard-ci exec -T backend php /tmp/restore-check.php prepare
+      - name: Backup consistent database, storage and key
+        shell: pwsh
+        run: ./docker/backup.ps1 -Project healthguard-ci
+      - name: Start disposable restore target
+        run: HEALTHGUARD_PORT=18090 docker compose -p healthguard-restore up -d --wait
+      - name: Restore into disposable target
+        shell: pwsh
+        run: |
+          $env:HEALTHGUARD_PORT='18090'
+          $backup=(Get-ChildItem backups -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          ./docker/restore.ps1 -Project healthguard-restore -BackupDirectory $backup -ConfirmRestore
+      - name: Verify restored encryption and storage
+        run: |
+          docker compose -p healthguard-restore cp docker/restore-check.php backend:/tmp/restore-check.php
+          docker compose -p healthguard-restore exec -T backend php /tmp/restore-check.php verify
+      - run: docker compose -p healthguard-restore down --volumes
+        if: always()
+      - run: docker compose -p healthguard-ci down --volumes
+        if: always()
+
