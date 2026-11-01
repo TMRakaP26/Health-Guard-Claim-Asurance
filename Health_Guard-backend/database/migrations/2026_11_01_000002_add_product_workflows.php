@@ -10,7 +10,7 @@ return new class extends Migration {
             $table->boolean('is_active')->default(true)->index();
             $table->text('two_factor_secret')->nullable();
             $table->timestamp('two_factor_confirmed_at')->nullable();
-            $table->json('two_factor_recovery_codes')->nullable();
+            $table->text('two_factor_recovery_codes')->nullable();
             $table->unsignedBigInteger('two_factor_last_counter')->nullable();
             $table->string('locale', 5)->default('id');
         });
@@ -74,3 +74,4 @@ return new class extends Migration {
         });
     }
 };
+
