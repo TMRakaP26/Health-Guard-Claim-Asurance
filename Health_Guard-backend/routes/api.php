@@ -17,7 +17,7 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // Protected routes
-Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'me']);
@@ -26,12 +26,14 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::delete('/user/photo', [AuthController::class, 'removeProfilePhoto']);
 
     // Claims
+    Route::get('/claims/export', [ClaimController::class, 'export'])->middleware('throttle:export');
     Route::get('/claims/unassigned', [ClaimController::class, 'unassigned'])->middleware('role:analyst');
     Route::get('/claims/my-assignments', [ClaimController::class, 'myAssignments'])->middleware('role:analyst');
     Route::post('/claims/{id}/assign', [ClaimController::class, 'assign'])->middleware('role:analyst');
     Route::get('/claims', [ClaimController::class, 'index']);
     Route::post('/claims', [ClaimController::class, 'store']);
     Route::get('/claims/{id}', [ClaimController::class, 'show']);
+    Route::get('/claims/{id}/history', [ClaimController::class, 'history']);
     Route::put('/claims/{id}', [ClaimController::class, 'update']);
     Route::patch('/claims/{id}/status', [ClaimController::class, 'updateStatus'])->middleware('role:analyst');
 

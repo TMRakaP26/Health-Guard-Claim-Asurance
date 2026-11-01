@@ -29,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Claim::class, ClaimPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
+        RateLimiter::for('export', fn (Request $request) => Limit::perMinute(5)->by('export:'.$request->user()?->id));
 
         RateLimiter::for('login', function (Request $request) {
             $email = $request->input('email');

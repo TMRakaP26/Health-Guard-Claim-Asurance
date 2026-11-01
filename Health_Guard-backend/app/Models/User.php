@@ -22,16 +22,29 @@ class User extends Authenticatable
         'profile_photo',
         'date_of_birth',
         'bpjs_number',
+        'is_active',
+        'locale',
+        'two_factor_secret',
+        'two_factor_confirmed_at',
+        'two_factor_recovery_codes',
+        'two_factor_last_counter',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_last_counter',
     ];
 
     protected function casts(): array
     {
         return [
+            'is_active' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'date_of_birth' => 'date',
@@ -52,4 +65,6 @@ class User extends Authenticatable
     {
         return $this->role === 'client';
     }
+
+    public function isAdmin(): bool { return $this->role === 'admin'; }
 }

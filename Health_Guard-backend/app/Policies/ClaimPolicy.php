@@ -9,13 +9,13 @@ class ClaimPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isClient() || $user->isAnalyst();
+        return $user->isClient() || $user->isAnalyst() || $user->isAdmin();
     }
 
     // Analysts may inspect all claims; only the assigned analyst may decide.
     public function view(User $user, Claim $claim): bool
     {
-        return $user->isAnalyst() || ($user->isClient() && $claim->user_id === $user->id);
+        return $user->isAdmin() || $user->isAnalyst() || ($user->isClient() && $claim->user_id === $user->id);
     }
 
     public function create(User $user): bool

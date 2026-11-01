@@ -61,4 +61,8 @@ class Claim extends Model
     {
         return $this->hasMany(ClaimHistory::class);
     }
+
+    public function payments(): HasMany { return $this->hasMany(ClaimPayment::class); }
+    public function messages(): HasMany { return $this->hasMany(ClaimMessage::class); }
+    public function documentRequests(): HasMany { return $this->hasMany(ClaimDocumentRequest::class); }
 }
