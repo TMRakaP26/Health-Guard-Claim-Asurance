@@ -9,6 +9,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    protected $attributes = ['is_active' => true, 'locale' => 'id'];
     use HasFactory, Notifiable, HasApiTokens;
 
     protected $fillable = [

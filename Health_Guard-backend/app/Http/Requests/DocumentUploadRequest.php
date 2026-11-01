@@ -7,7 +7,9 @@ class DocumentUploadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('uploadDocument', Claim::where('claim_id', $this->route('claimId'))->firstOrFail()) ?? false;
+        $claim = Claim::where('claim_id', $this->route('claimId'))->firstOrFail();
+        return ($this->user()?->can('uploadDocument', $claim) ?? false)
+            || ($this->filled('message_id') && ($this->user()?->can('decide', $claim) ?? false));
     }
     public function rules(): array
     {

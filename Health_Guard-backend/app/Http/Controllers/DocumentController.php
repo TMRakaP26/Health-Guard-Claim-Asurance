@@ -22,7 +22,8 @@ class DocumentController extends Controller {
         try {
             $document = DB::transaction(function () use ($request, $claim, $file, $path, $history) {
                 $claim = Claim::whereKey($claim->id)->lockForUpdate()->firstOrFail();
-                Gate::authorize('uploadDocument', $claim);
+                if ($request->filled('message_id') && $request->user()->isAnalyst()) { Gate::authorize('decide', $claim); }
+                else { Gate::authorize('uploadDocument', $claim); }
                 $requested = $request->filled('request_id') ? ClaimDocumentRequest::where('claim_id', $claim->id)->whereKey($request->integer('request_id'))->lockForUpdate()->firstOrFail() : null;
                 if ($request->filled('message_id')) { ClaimMessage::where('claim_id', $claim->id)->where('user_id', $request->user()->id)->whereKey($request->integer('message_id'))->firstOrFail(); }
                 if ($requested) { abort_unless($requested->status === 'open', 409, 'This document request is already fulfilled.'); }
