@@ -16,6 +16,8 @@ class Document extends Model
         'file_path',
         'file_size',
         'mime_type',
+        'request_id',
+        'message_id',
     ];
 
     public function claim(): BelongsTo
