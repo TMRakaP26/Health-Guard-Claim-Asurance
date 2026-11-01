@@ -2,7 +2,7 @@ FROM php:8.4-apache-bookworm
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl unzip libonig-dev libsqlite3-dev libzip-dev \
-    && docker-php-ext-install -j"$(nproc)" mbstring pdo_sqlite zip opcache \
+    && docker-php-ext-install -j"$(nproc)" mbstring pdo_sqlite pdo_mysql zip opcache \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 

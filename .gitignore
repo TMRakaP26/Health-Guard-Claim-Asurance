@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+backups/
+artifacts/
+playwright-report/
+test-results/

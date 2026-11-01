@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ClaimStatus;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,11 +26,16 @@ class Claim extends Model
         'date_submitted',
         'approved_amount',
         'bpjs_number',
+        'patient_date_of_birth',
+        'service_date',
     ];
 
     protected function casts(): array
     {
         return [
+            'status' => ClaimStatus::class,
+            'patient_date_of_birth' => 'date:Y-m-d',
+            'service_date' => 'date:Y-m-d',
             'amount' => 'decimal:2',
             'approved_amount' => 'decimal:2',
             'date_submitted' => 'datetime',
@@ -48,5 +55,10 @@ class Claim extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    public function histories(): HasMany
+    {
+        return $this->hasMany(ClaimHistory::class);
     }
 }
