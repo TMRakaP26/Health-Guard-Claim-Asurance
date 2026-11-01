@@ -27,6 +27,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Auth\Notifications\ResetPassword::createUrlUsing(fn ($user, $token) => rtrim(config('healthguard.frontend_url'), '/').'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email));
+        \Illuminate\Auth\Notifications\VerifyEmail::toMailUsing(function ($user, $url) {
+            return (new \Illuminate\Notifications\Messages\MailMessage)->subject('Verify your HealthGuard email')
+                ->line('Confirm your email address to complete your account.')
+                ->action('Verify email', rtrim(config('healthguard.frontend_url'), '/').'/verify-email?url='.urlencode($url));
+        });
         Gate::policy(Claim::class, ClaimPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
         RateLimiter::for('export', fn (Request $request) => Limit::perMinute(5)->by('export:'.$request->user()?->id));
