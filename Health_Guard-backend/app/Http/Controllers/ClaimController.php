@@ -1,193 +1,103 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use App\Models\Claim;
-use App\Models\Notification;
-use App\Models\User;
-use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Http\JsonResponse;
+use App\Http\Requests\ClaimInputRequest;
+use App\Http\Requests\ClaimDecisionRequest;
+use App\Http\Requests\ClaimListRequest;
+use App\Http\Resources\ClaimResource;
+use App\Http\Resources\ClaimHistoryResource;
+use App\Services\ClaimService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-
 class ClaimController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function __construct(private ClaimService $claims) {}
+    public function query(ClaimListRequest $request, ?string $scope = null): Builder
     {
         Gate::authorize('viewAny', Claim::class);
-        $user = $request->user();
-
-        $query = Claim::with(['user', 'assignedAnalyst']);
-
-        if ($user->isClient()) {
-            $query->where('user_id', $user->id);
+        $request->validated();
+        $query = Claim::query();
+        if ($request->user()->isClient()) { $query->where('user_id', $request->user()->id); }
+        $scope ??= $request->input('scope', 'all');
+        if ($scope !== 'all') {
+            abort_unless($request->user()->isAnalyst() || $request->user()->isAdmin(), 403);
+            if ($scope === 'assigned') { $query->where('assigned_to', $request->user()->id); }
+            if ($scope === 'unassigned') { $query->whereNull('assigned_to')->where('status', 'Pending'); }
         }
-
-        $perPage = min((int) $request->get('per_page', 20), 100);
-        $claims = $query->orderBy('date_submitted', 'desc')->paginate($perPage);
-
-        return response()->json($claims);
-    }
-
-    public function unassigned(Request $request): JsonResponse
-    {
-        $claims = Claim::with(['user', 'assignedAnalyst'])
-            ->whereNull('assigned_to')
-            ->where('status', 'Pending')
-            ->orderBy('date_submitted', 'desc')
-            ->paginate(min((int) $request->get('per_page', 20), 100));
-
-        return response()->json($claims);
-    }
-
-    public function myAssignments(Request $request): JsonResponse
-    {
-        $claims = Claim::with(['user', 'assignedAnalyst'])
-            ->where('assigned_to', $request->user()->id)
-            ->orderBy('date_submitted', 'desc')
-            ->paginate(min((int) $request->get('per_page', 20), 100));
-
-        return response()->json($claims);
-    }
-
-    public function assign(Request $request, string $id): JsonResponse
-    {
-        $claim = Claim::where('claim_id', $id)->firstOrFail();
-        Gate::authorize('assign', $claim);
-
-        // Conditional update is atomic on SQLite and MySQL, including competing requests.
-        DB::transaction(function () use ($request, $claim) {
-            $updated = Claim::whereKey($claim->id)->whereNull('assigned_to')
-                ->where('status', 'Pending')->update(['assigned_to' => $request->user()->id]);
-            abort_unless($updated === 1, 409, 'Only unassigned Pending claims can be assigned.');
-            $claim->refresh();
-            Notification::create([
-                'user_id' => $claim->user_id,
-                'type' => 'claim_assigned',
-                'title' => 'Claim Under Review',
-                'body' => "Your claim {$claim->claim_id} is now being reviewed by an analyst.",
-                'claim_id' => $claim->claim_id,
-            ]);
-        });
-
-        return response()->json([
-            'claim' => $claim->load(['user', 'assignedAnalyst']),
-            'message' => 'Claim assigned successfully',
-        ]);
-    }
-
-    public function store(Request $request): JsonResponse
-    {
-        Gate::authorize('create', Claim::class);
-        $validated = $request->validate([
-            'client_name' => 'required|string|max:255',
-            'type' => 'required|string|max:255',
-            'provider_name' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0',
-            'bpjs_number' => 'sometimes|string|max:30',
-        ]);
-
-        // Retry in the rare case two requests generate the same sequential id at once.
-        $claim = retry(3, function () use ($request, $validated) {
-            return Claim::create([
-                'user_id' => $request->user()->id,
-                'claim_id' => $this->generateClaimId(),
-                'client_name' => $validated['client_name'],
-                'type' => $validated['type'],
-                'provider_name' => $validated['provider_name'],
-                'amount' => $validated['amount'],
-                'bpjs_number' => $validated['bpjs_number'] ?? null,
-                'status' => 'Pending',
-                'date_submitted' => now(),
-            ]);
-        }, 0, fn ($e) => $e instanceof UniqueConstraintViolationException);
-
-        // Notify all analysts about the new claim
-        $analysts = User::where('role', 'analyst')->get();
-        foreach ($analysts as $analyst) {
-            Notification::create([
-                'user_id' => $analyst->id,
-                'type' => 'claim_submitted',
-                'title' => 'New Claim Submitted',
-                'body' => "A new claim {$claim->claim_id} from {$claim->client_name} has been submitted and needs review.",
-                'claim_id' => $claim->claim_id,
-            ]);
+        if ($request->filled('status')) { $query->where('status', $request->input('status')); }
+        if ($request->filled('q')) {
+            $term = '%'.addcslashes($request->input('q'), '%_\\').'%';
+            $query->where(fn (Builder $q) => $q->where('claim_id', 'like', $term)->orWhere('client_name', 'like', $term)->orWhere('provider_name', 'like', $term)->orWhere('type', 'like', $term));
         }
-
-        return response()->json($claim->load('assignedAnalyst'), 201);
+        if ($request->filled('date_from')) { $query->whereDate('date_submitted', '>=', $request->input('date_from')); }
+        if ($request->filled('date_to')) { $query->whereDate('date_submitted', '<=', $request->input('date_to')); }
+        return $query;
     }
-
-    public function show(Request $request, string $id): JsonResponse
+    private function listing(ClaimListRequest $request, ?string $scope = null)
     {
-        $claim = Claim::with(['user', 'documents', 'assignedAnalyst'])->where('claim_id', $id)->firstOrFail();
-
+        $query = $this->query($request, $scope);
+        $stats = ['total' => (clone $query)->count(), 'amount' => (string) (clone $query)->sum('amount'),
+            'approved_amount' => (string) (clone $query)->sum('approved_amount'),
+            'by_status' => (clone $query)->selectRaw('status, COUNT(*) as count')->groupBy('status')->pluck('count', 'status')];
+        [$column, $direction] = match ($request->input('sort', 'newest')) {
+            'oldest' => ['date_submitted', 'asc'], 'amount_asc' => ['amount', 'asc'],
+            'amount_desc' => ['amount', 'desc'], default => ['date_submitted', 'desc'],
+        };
+        $page = $query->with('assignedAnalyst')->orderBy($column, $direction)->orderBy('id', $direction)->paginate($request->integer('per_page', 20));
+        $body = $page->toArray();
+        $body['data'] = ClaimResource::collection($page->getCollection())->resolve();
+        $body['stats'] = $stats;
+        return response()->json($body);
+    }
+    public function index(ClaimListRequest $request) { return $this->listing($request); }
+    public function unassigned(ClaimListRequest $request) { return $this->listing($request, 'unassigned'); }
+    public function myAssignments(ClaimListRequest $request) { return $this->listing($request, 'assigned'); }
+    public function show(Request $request, string $id)
+    {
+        $claim = Claim::where('claim_id', $id)->with(['assignedAnalyst', 'documents'])->firstOrFail();
         Gate::authorize('view', $claim);
-
-        return response()->json($claim);
+        return response()->json((new ClaimResource($claim))->resolve());
     }
-
-    public function update(Request $request, string $id): JsonResponse
+    public function store(ClaimInputRequest $request)
+    {
+        return response()->json((new ClaimResource($this->claims->create($request->user(), $request->validated())))->resolve(), 201);
+    }
+    public function update(ClaimInputRequest $request, string $id)
+    {
+        return response()->json((new ClaimResource($this->claims->resubmit($request->user(), Claim::where('claim_id', $id)->firstOrFail(), $request->validated())))->resolve());
+    }
+    public function assign(Request $request, string $id)
+    {
+        return response()->json(['claim' => (new ClaimResource($this->claims->assign($request->user(), Claim::where('claim_id', $id)->firstOrFail())))->resolve(), 'message' => 'Claim assigned successfully']);
+    }
+    public function updateStatus(ClaimDecisionRequest $request, string $id)
+    {
+        return response()->json((new ClaimResource($this->claims->decide($request->user(), Claim::where('claim_id', $id)->firstOrFail(), $request->validated())))->resolve());
+    }
+    public function history(Request $request, string $id)
     {
         $claim = Claim::where('claim_id', $id)->firstOrFail();
-
-        Gate::authorize('update', $claim);
-
-        $validated = $request->validate([
-            'client_name' => 'sometimes|string|max:255',
-            'type' => 'sometimes|string|max:255',
-            'provider_name' => 'sometimes|string|max:255',
-            'amount' => 'sometimes|numeric|min:0',
-        ]);
-
-        $claim->update(array_merge($validated, [
-            'status' => 'Pending',
-            'approved_amount' => null, // Reset approved amount on resubmission
-        ]));
-
-        return response()->json($claim->load('assignedAnalyst'));
+        Gate::authorize('viewHistory', $claim);
+        $data = $request->validate(['per_page' => 'sometimes|integer|min:1|max:100', 'page' => 'sometimes|integer|min:1', 'order' => 'sometimes|in:asc,desc']);
+        $order = $data['order'] ?? 'desc';
+        return ClaimHistoryResource::collection($claim->histories()->with('actor')->orderBy('created_at', $order)->orderBy('id', $order)->paginate($data['per_page'] ?? 50));
     }
-
-    public function updateStatus(Request $request, string $id): JsonResponse
+    public function export(ClaimListRequest $request)
     {
-        $claim = Claim::where('claim_id', $id)->firstOrFail();
-        Gate::authorize('decide', $claim);
-
-        $validated = $request->validate([
-            'status' => 'required|string|in:Pending,Approved,Rejected,Needs Info,Partially Approved',
-            'notes' => 'nullable|string',
-            'approved_amount' => 'nullable|numeric|min:0',
-        ]);
-
-        $claim->update($validated);
-
-        // Notify the claim owner about the status change
-        $statusLabel = $validated['status'];
-        $notes = $validated['notes'] ?? null;
-        $notesSuffix = $notes ? ": {$notes}" : '.';
-        Notification::create([
-            'user_id' => $claim->user_id,
-            'type' => 'status_changed',
-            'title' => "Claim {$statusLabel}",
-            'body' => "Your claim {$claim->claim_id} status has been updated to {$statusLabel}{$notesSuffix}",
-            'claim_id' => $claim->claim_id,
-        ]);
-
-        return response()->json($claim->load('assignedAnalyst'));
-    }
-
-    /**
-     * Generate the next sequential claim id for the current year (CLM-YYYY-XXX).
-     */
-    private function generateClaimId(): string
-    {
-        $year = date('Y');
-
-        $maxSequence = Claim::where('claim_id', 'like', "CLM-{$year}-%")
-            ->pluck('claim_id')
-            ->map(fn (string $claimId) => (int) substr($claimId, strrpos($claimId, '-') + 1))
-            ->max() ?? 0;
-
-        return sprintf('CLM-%d-%03d', $year, $maxSequence + 1);
+        abort_unless($request->user()->isAnalyst() || $request->user()->isAdmin(), 403);
+        $query = $this->query($request)->with('assignedAnalyst')->orderBy('id');
+        return response()->streamDownload(function () use ($query) {
+            $stream = fopen('php://output', 'w');
+            fwrite($stream, "\xEF\xBB\xBF");
+            fputcsv($stream, ['Claim ID', 'Client', 'Submitted', 'Type', 'Provider', 'Amount (IDR)', 'Approved (IDR)', 'Analyst', 'Status'], escape: '');
+            foreach ($query->lazy(200) as $claim) {
+                $row = [$claim->claim_id, $claim->client_name, $claim->date_submitted->toISOString(), $claim->type,
+                    $claim->provider_name, $claim->amount, $claim->approved_amount, $claim->assignedAnalyst?->name, $claim->status->value];
+                $row = array_map(fn ($value) => preg_match('/^[=+@\-\t\r\n]/', (string) $value) ? "'".$value : $value, $row);
+                fputcsv($stream, $row, escape: '');
+            }
+            fclose($stream);
+        }, 'healthguard-claims.csv', ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'private, no-store']);
     }
 }

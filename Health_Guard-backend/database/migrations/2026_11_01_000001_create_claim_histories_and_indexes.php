@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::create('claim_sequences', function (Blueprint $table) {
+            $table->unsignedInteger('year')->primary();
+            $table->unsignedBigInteger('value')->default(0);
+        });
         Schema::create('claim_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('claim_id')->constrained()->cascadeOnDelete();
@@ -42,5 +46,6 @@ return new class extends Migration
             $table->dropColumn(['patient_date_of_birth', 'service_date']);
         });
         Schema::dropIfExists('claim_histories');
+        Schema::dropIfExists('claim_sequences');
     }
 };
