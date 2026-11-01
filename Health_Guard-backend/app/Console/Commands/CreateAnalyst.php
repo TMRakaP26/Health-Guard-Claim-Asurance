@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 
 class CreateAnalyst extends Command
 {
+    protected string $role = 'analyst';
     protected $signature = 'healthguard:create-analyst';
 
     protected $description = 'Create an analyst through a trusted interactive terminal';
@@ -36,9 +37,9 @@ class CreateAnalyst extends Command
 
         User::create([
             'name' => $data['name'], 'email' => $data['email'],
-            'password' => Hash::make($data['password']), 'role' => 'analyst',
+            'password' => Hash::make($data['password']), 'role' => $this->role,
         ]);
-        $this->info('Analyst account created.');
+        $this->info($this->role === 'analyst' ? 'Analyst account created.' : 'Administrator account created.');
 
         return self::SUCCESS;
     }

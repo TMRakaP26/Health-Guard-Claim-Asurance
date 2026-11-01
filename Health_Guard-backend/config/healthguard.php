@@ -4,6 +4,7 @@ return [
     'max_amount' => '99999999.99',
     'demo_seed' => env('DEMO_SEED_ENABLED', false),
     'features' => [
+        'realtime' => env('FEATURE_REALTIME', false),
         'messages' => env('FEATURE_MESSAGES', true),
         'payments' => env('FEATURE_PAYMENTS', true),
         'email' => env('FEATURE_EMAIL', false),

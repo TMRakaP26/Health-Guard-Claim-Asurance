@@ -10,8 +10,11 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing']) || (! app()->environment('testing') && ! config('healthguard.demo_seed'))) {
+            throw new \RuntimeException('Demo seeding requires APP_ENV=local and DEMO_SEED_ENABLED=true.');
+        }
         // Create analyst user
-        $analyst = User::create([
+        $analyst = User::firstOrCreate(['email' => 'analyst@healthguard.com'], [
             'name' => 'Sarah Analyst',
             'email' => 'analyst@healthguard.com',
             'password' => bcrypt('password'),
@@ -19,7 +22,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Create client user
-        $client = User::create([
+        $client = User::firstOrCreate(['email' => 'client@healthguard.com'], [
             'name' => 'John Doe',
             'email' => 'client@healthguard.com',
             'password' => bcrypt('password'),
@@ -71,7 +74,9 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($claims as $claimData) {
-            Claim::create($claimData);
+            Claim::firstOrCreate(['claim_id' => $claimData['claim_id']], $claimData);
         }
+        $this->call(\Database\Seeders\CatalogSeeder::class);
+        \Illuminate\Support\Facades\Artisan::call('healthguard:backfill-history');
     }
 }
