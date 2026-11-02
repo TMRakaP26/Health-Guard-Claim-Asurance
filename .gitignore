@@ -6,3 +6,7 @@ artifacts/
 playwright-report/
 test-results/
 .cache/
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
