@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi, describe, it, expect, beforeEach } from "vitest";
@@ -57,6 +57,85 @@ function mount(element: React.ReactNode, path = "/claims") {
   );
 }
 beforeEach(() => vi.resetAllMocks());
+function mockDetail(status = "Needs Info", history: unknown[] = []) {
+  vi.mocked(api.get).mockImplementation(async (url) => ({
+    data: String(url).includes("/history?")
+      ? { data: history, meta: { last_page: 1 } }
+      : String(url).endsWith("/document-requests")
+        ? []
+        : url === "/catalog"
+          ? { providers: [], categories: [], features: {} }
+          : { ...claim, status },
+  }));
+}
+describe("claim history and statuses", () => {
+  it.each([
+    "Pending",
+    "Approved",
+    "Rejected",
+    "Needs Info",
+    "Partially Approved",
+  ])("renders %s in the current status badge", async (status) => {
+    mockDetail(status);
+    const { container } = mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    await screen.findByRole("heading", { name: "CLM-2026-001" });
+    expect(container.querySelector(".page-header .badge")).toHaveTextContent(
+      status,
+    );
+  });
+  it("renders an explicit empty history state", async () => {
+    mockDetail();
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    expect(
+      await screen.findByText("Belum ada histori klaim."),
+    ).toBeInTheDocument();
+  });
+  it("renders actor, transition, note and amount", async () => {
+    mockDetail("Partially Approved", [
+      {
+        id: 1,
+        event: "status_changed",
+        from_status: "Pending",
+        to_status: "Partially Approved",
+        notes: "Receipt reviewed",
+        approved_amount: "200.25",
+        actor: { name: "Reviewer" },
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    await screen.findByText("status changed");
+    const timeline = within(
+      screen
+        .getByRole("heading", { name: "Histori klaim" })
+        .closest("section")!,
+    );
+    expect(
+      timeline.getByText("Pending → Partially Approved"),
+    ).toBeInTheDocument();
+    expect(timeline.getByText("Receipt reviewed")).toBeInTheDocument();
+    expect(timeline.getByText(/Reviewer/)).toBeInTheDocument();
+    expect(timeline.getByText(/200,25/)).toBeInTheDocument();
+  });
+  it("retries a failed history request independently", async () => {
+    mockDetail();
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((...args) =>
+      String(args[0]).includes("/history?")
+        ? Promise.reject(new Error("History offline"))
+        : original(...args),
+    );
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    await screen.findByText("History offline", { exact: false });
+    mockDetail();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Coba lagi / Retry" }),
+    );
+    expect(
+      await screen.findByText("Belum ada histori klaim."),
+    ).toBeInTheDocument();
+  });
+});
 async function prepareClaim(files: File[] = []) {
   vi.mocked(api.get).mockResolvedValue({
     data: {

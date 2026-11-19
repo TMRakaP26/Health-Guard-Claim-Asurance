@@ -29,6 +29,8 @@ export function Shell() {
       }
     }
     void poll();
+    const refresh = () => void poll();
+    window.addEventListener("healthguard:notifications-changed", refresh);
     const timer = setInterval(() => {
       if (!document.hidden) void poll();
     }, 30000);
@@ -62,6 +64,7 @@ export function Shell() {
       controller.abort();
       clearInterval(timer);
       clearTimeout(reconnect);
+      window.removeEventListener("healthguard:notifications-changed", refresh);
     };
   }, [user, catalog.data?.features.realtime]);
   if (isLoading) return <Feedback loading />;
@@ -154,6 +157,9 @@ export function Notifications() {
         onClick={() =>
           void action.run(async () => {
             await api.post("/notifications/read-all");
+            window.dispatchEvent(
+              new Event("healthguard:notifications-changed"),
+            );
             query.reload();
           })
         }
@@ -161,15 +167,22 @@ export function Notifications() {
         {t("Tandai semua dibaca", "Mark all read")}
       </button>
       <Feedback {...query} retry={query.reload} />
+      <Feedback error={action.error} />
       {query.data?.data.map((n) => (
         <article className="panel" key={n.id}>
           <button
             className="link-button"
             onClick={() =>
               void action.run(async () => {
-                await api.post("/notifications/" + n.id + "/read");
-                if (n.claim_id) navigate("/claims/" + n.claim_id);
-                else query.reload();
+                try {
+                  await api.post("/notifications/" + n.id + "/read");
+                  window.dispatchEvent(
+                    new Event("healthguard:notifications-changed"),
+                  );
+                } finally {
+                  if (n.claim_id) navigate("/claims/" + n.claim_id);
+                  else query.reload();
+                }
               })
             }
           >

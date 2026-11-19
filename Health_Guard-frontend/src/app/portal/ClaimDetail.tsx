@@ -577,6 +577,9 @@ export function ClaimDetail() {
           <section className="panel">
             <h2>{t("Histori klaim", "Claim history")}</h2>
             <Feedback {...history} retry={history.reload} />
+            {history.data?.data.length === 0 && (
+              <p>{t("Belum ada histori klaim.", "No claim history yet.")}</p>
+            )}
             <ol className="timeline">
               {history.data?.data.map((h) => (
                 <li key={h.id}>

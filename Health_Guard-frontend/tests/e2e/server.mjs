@@ -6,11 +6,23 @@ import { join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 const temporary = mkdtempSync(join(tmpdir(), "healthguard-e2e-"));
 const database = join(temporary, "database.sqlite");
+const storage = join(temporary, "storage");
+for (const directory of [
+  "app/private",
+  "app/public",
+  "framework/cache/data",
+  "framework/sessions",
+  "framework/views",
+  "logs",
+]) {
+  mkdirSync(join(storage, directory), { recursive: true });
+}
 writeFileSync(database, "");
 const backend = resolve("../Health_Guard-backend");
 const env = {
   ...process.env,
   APP_ENV: "testing",
+  LARAVEL_STORAGE_PATH: storage,
   APP_DEBUG: "false",
   APP_KEY: "base64:" + randomBytes(32).toString("base64"),
   DB_CONNECTION: "sqlite",
