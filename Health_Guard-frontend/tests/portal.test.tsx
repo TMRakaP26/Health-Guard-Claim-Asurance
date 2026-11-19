@@ -57,6 +57,92 @@ function mount(element: React.ReactNode, path = "/claims") {
   );
 }
 beforeEach(() => vi.resetAllMocks());
+async function prepareClaim(files: File[] = []) {
+  vi.mocked(api.get).mockResolvedValue({
+    data: {
+      providers: [],
+      categories: [],
+      features: {},
+      max_amount: 99999999.99,
+    },
+  });
+  vi.mocked(api.request).mockResolvedValue({ data: claim });
+  mount(<ClaimForm />, "/claims/new");
+  await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+  await userEvent.type(screen.getByLabelText("Provider"), "Hospital");
+  await userEvent.type(screen.getByLabelText("Kategori klaim"), "Outpatient");
+  await userEvent.type(screen.getByLabelText("Nominal klaim (IDR)"), "500");
+  await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+  if (files.length)
+    await userEvent.upload(
+      screen.getByLabelText("Pilih dokumen pendukung"),
+      files,
+    );
+}
+describe("claim form recovery", () => {
+  it("summarizes invalid fields, focuses the first and does not submit", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { providers: [], categories: [] },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await userEvent.clear(screen.getByLabelText("Nama pasien"));
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Nama pasien");
+    expect(screen.getByLabelText(/^Nama pasien/)).toHaveFocus();
+    expect(screen.getByLabelText(/^Nama pasien/)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(api.request).not.toHaveBeenCalled();
+  });
+  it("removes selected files and shows filenames in confirmation", async () => {
+    await prepareClaim([
+      new File(["%PDF-1.4"], "keep.pdf", { type: "application/pdf" }),
+      new File(["%PDF-1.4"], "remove.pdf", { type: "application/pdf" }),
+    ]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Hapus remove.pdf" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(
+      screen.getByRole("list", { name: "Dokumen dipilih" }),
+    ).toHaveTextContent("keep.pdf");
+    expect(screen.queryByText(/remove.pdf/)).not.toBeInTheDocument();
+  });
+  it("retries only the failed file without recreating the claim or uploading confirmed files", async () => {
+    await prepareClaim([
+      new File(["%PDF-1.4"], "first.pdf", { type: "application/pdf" }),
+      new File(["%PDF-1.4"], "second.pdf", { type: "application/pdf" }),
+      new File(["%PDF-1.4"], "third.pdf", { type: "application/pdf" }),
+    ]);
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: {} })
+      .mockRejectedValueOnce(new Error("Upload offline"))
+      .mockResolvedValue({ data: {} });
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Kirim pengajuan" }),
+    );
+    await screen.findByRole("button", { name: "Coba ulang second.pdf" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Coba ulang second.pdf" }),
+    );
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+    expect(api.request).toHaveBeenCalledTimes(1);
+    const sent = vi
+      .mocked(api.post)
+      .mock.calls.map((call) => (call[1] as FormData).get("file") as File);
+    expect(sent.map((file) => file.name)).toEqual([
+      "first.pdf",
+      "second.pdf",
+      "second.pdf",
+    ]);
+    expect(
+      screen.getByRole("button", { name: "Coba ulang third.pdf" }),
+    ).toBeInTheDocument();
+  });
+});
 describe("API-driven claims", () => {
   it("renders server totals and requests another page", async () => {
     vi.mocked(api.get).mockResolvedValue({

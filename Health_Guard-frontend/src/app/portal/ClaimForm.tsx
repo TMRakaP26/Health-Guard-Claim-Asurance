@@ -20,6 +20,7 @@ import {
   useAction,
   useQuery,
   validateFile,
+  message,
 } from "./shared";
 import type { Catalog, Claim, ClaimInput, Draft } from "./types";
 export function Drafts() {
@@ -89,6 +90,9 @@ export function ClaimForm() {
   const [savedClaim, setSavedClaim] = useState<string>();
   const [files, setFiles] = useState<File[]>([]);
   const [uploaded, setUploaded] = useState<string[]>([]);
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
+  const [validation, setValidation] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState(0);
   const [controller, setController] = useState<AbortController>();
   const loaded = useRef(false);
@@ -107,9 +111,7 @@ export function ClaimForm() {
     }
   }, [claim.data, drafts.data, params]);
   const allowNavigation = useRef(false);
-  const blocker = useBlocker(
-    () => dirty && !savedClaim && !allowNavigation.current,
-  );
+  const blocker = useBlocker(() => dirty && !allowNavigation.current);
   useEffect(() => {
     function before(e: BeforeUnloadEvent) {
       if (dirty) {
@@ -146,7 +148,9 @@ export function ClaimForm() {
       ),
     );
   }
-  async function submit() {
+  const fileKey = (file: File) =>
+    file.name + ":" + file.size + ":" + file.lastModified;
+  async function submit(onlyFile?: File) {
     let claimId = savedClaim;
     if (!claimId) {
       const r = await api.request<Claim>({
@@ -160,18 +164,32 @@ export function ClaimForm() {
     const abort = new AbortController();
     setController(abort);
     try {
-      for (const file of files) {
-        const key = file.name + ":" + file.size + ":" + file.lastModified;
-        if (uploaded.includes(key)) continue;
+      const confirmed = new Set(uploaded);
+      for (const file of onlyFile ? [onlyFile] : files) {
+        const key = fileKey(file);
+        if (confirmed.has(key)) continue;
         const body = new FormData();
         body.append("file", file);
-        await api.post("/claims/" + claimId + "/documents", body, {
-          signal: abort.signal,
-          onUploadProgress: (p) =>
-            setProgress(Math.round((p.progress || 0) * 100)),
+        setProgress(0);
+        try {
+          await api.post("/claims/" + claimId + "/documents", body, {
+            signal: abort.signal,
+            onUploadProgress: (p) =>
+              setProgress(Math.round((p.progress || 0) * 100)),
+          });
+        } catch (error) {
+          setFileErrors((old) => ({ ...old, [key]: message(error) }));
+          throw error;
+        }
+        setFileErrors((old) => {
+          const next = { ...old };
+          delete next[key];
+          return next;
         });
+        confirmed.add(key);
         setUploaded((list) => [...list, key]);
       }
+      if (files.some((file) => !confirmed.has(fileKey(file)))) return;
       if (draftId) await api.delete("/drafts/" + draftId);
       setDirty(false);
       toast.success(t("Klaim tersimpan", "Claim saved"));
@@ -224,12 +242,48 @@ export function ClaimForm() {
       )}
       <form
         className="panel"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          const invalid = Array.from(
+            e.currentTarget.querySelectorAll<HTMLInputElement>("input:invalid"),
+          );
+          setFieldErrors(
+            Object.fromEntries(
+              invalid.map((input) => [input.name, input.validationMessage]),
+            ),
+          );
+          setValidation(
+            invalid.map(
+              (input) =>
+                `${input.closest("label")?.textContent?.trim() || "Field"}: ${input.validationMessage}`,
+            ),
+          );
+          for (const input of e.currentTarget.querySelectorAll<HTMLInputElement>(
+            "input",
+          )) {
+            input.setAttribute("aria-invalid", String(!input.validity.valid));
+          }
+          if (invalid.length) {
+            invalid[0].focus();
+            return;
+          }
           if (step < 4) setStep(step + 1);
-          else void action.run(submit);
+          else void action.run(() => submit());
         }}
       >
+        {validation.length > 0 && (
+          <div className="error" role="alert">
+            <strong>
+              {t("Periksa data pengajuan", "Check claim details")}
+            </strong>
+            <ul>
+              {validation.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <fieldset disabled={!!savedClaim || action.busy}>
           <legend>{t("Data pengajuan", "Claim data")}</legend>
           {step === 1 && (
@@ -239,25 +293,36 @@ export function ClaimForm() {
                   required
                   maxLength={255}
                   value={data.client_name}
+                  name="client_name"
+                  aria-describedby="client_name-error"
                   onChange={(e) => change("client_name", e.target.value)}
                 />
+                <span id="client_name-error">{fieldErrors.client_name}</span>
               </Field>
               <Field label={t("Tanggal lahir pasien", "Patient date of birth")}>
                 <input
                   type="date"
                   max={today}
                   value={data.patient_date_of_birth}
+                  name="patient_date_of_birth"
+                  aria-describedby="patient_date_of_birth-error"
                   onChange={(e) =>
                     change("patient_date_of_birth", e.target.value)
                   }
                 />
+                <span id="patient_date_of_birth-error">
+                  {fieldErrors.patient_date_of_birth}
+                </span>
               </Field>
               <Field label="Nomor BPJS">
                 <input
                   maxLength={30}
                   value={data.bpjs_number}
+                  name="bpjs_number"
+                  aria-describedby="bpjs_number-error"
                   onChange={(e) => change("bpjs_number", e.target.value)}
                 />
+                <span id="bpjs_number-error">{fieldErrors.bpjs_number}</span>
               </Field>
             </>
           )}
@@ -269,8 +334,13 @@ export function ClaimForm() {
                   list="providers"
                   maxLength={255}
                   value={data.provider_name}
+                  name="provider_name"
+                  aria-describedby="provider_name-error"
                   onChange={(e) => change("provider_name", e.target.value)}
                 />
+                <span id="provider_name-error">
+                  {fieldErrors.provider_name}
+                </span>
                 <datalist id="providers">
                   {catalog.data?.providers.map((p) => (
                     <option key={p.id} value={p.name} />
@@ -283,8 +353,11 @@ export function ClaimForm() {
                   list="categories"
                   maxLength={255}
                   value={data.type}
+                  name="type"
+                  aria-describedby="type-error"
                   onChange={(e) => change("type", e.target.value)}
                 />
+                <span id="type-error">{fieldErrors.type}</span>
                 <datalist id="categories">
                   {catalog.data?.categories.map((p) => (
                     <option key={p.id} value={p.name} />
@@ -304,8 +377,11 @@ export function ClaimForm() {
                   type="date"
                   max={today}
                   value={data.service_date}
+                  name="service_date"
+                  aria-describedby="service_date-error"
                   onChange={(e) => change("service_date", e.target.value)}
                 />
+                <span id="service_date-error">{fieldErrors.service_date}</span>
               </Field>
               <Field label={t("Nominal klaim (IDR)", "Claim amount (IDR)")}>
                 <input
@@ -315,8 +391,11 @@ export function ClaimForm() {
                   step=".01"
                   max={catalog.data?.max_amount || 99999999.99}
                   value={data.amount}
+                  name="amount"
+                  aria-describedby="amount-error"
                   onChange={(e) => change("amount", e.target.value)}
                 />
+                <span id="amount-error">{fieldErrors.amount}</span>
               </Field>
             </>
           )}
@@ -349,13 +428,6 @@ export function ClaimForm() {
                   "PDF, JPG, PNG, DOC/DOCX. Maximum 10 MB per file.",
                 )}
               </p>
-              <ul>
-                {files.map((f) => (
-                  <li key={f.name + f.size}>
-                    {f.name} ({Math.ceil(f.size / 1024)} KB)
-                  </li>
-                ))}
-              </ul>
             </>
           )}
           {step === 4 && (
@@ -398,6 +470,43 @@ export function ClaimForm() {
             </>
           )}
         </fieldset>
+        {step >= 3 && (
+          <ul aria-label={t("Dokumen dipilih", "Selected documents")}>
+            {files.map((file) => (
+              <li key={fileKey(file)}>
+                {file.name} ({Math.ceil(file.size / 1024)} KB)
+                {uploaded.includes(fileKey(file)) ? (
+                  <span role="status"> — {t("Terunggah", "Uploaded")}</span>
+                ) : (
+                  <>
+                    {fileErrors[fileKey(file)] && (
+                      <span role="alert"> {fileErrors[fileKey(file)]}</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={action.busy}
+                      onClick={() => {
+                        setFiles((old) => old.filter((f) => f !== file));
+                        setDirty(true);
+                      }}
+                    >
+                      {t("Hapus", "Remove")} {file.name}
+                    </button>
+                    {savedClaim && (
+                      <button
+                        type="button"
+                        disabled={action.busy}
+                        onClick={() => void action.run(() => submit(file))}
+                      >
+                        {t("Coba ulang", "Retry")} {file.name}
+                      </button>
+                    )}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="actions">
           {step > 1 && !savedClaim && (
             <button

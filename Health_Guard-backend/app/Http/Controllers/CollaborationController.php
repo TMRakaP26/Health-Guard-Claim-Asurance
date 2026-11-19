@@ -77,6 +77,6 @@ class CollaborationController extends Controller
             return $item;
         }, 5);
 
-        return response()->json($result,201);
+        return response()->json($result, 201);
     }
 }
