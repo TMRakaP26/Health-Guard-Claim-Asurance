@@ -26,8 +26,9 @@ class ValidationBoundaryTest extends TestCase
         yield 'email malformed' => ['email', 'invalid', false, false];
         yield 'email mixed case' => ['email', 'Mixed@Example.Test', true, false];
         yield 'email too long' => ['email', str_repeat('a', 245).'@example.test', false, false];
-        yield 'email 254' => ['email', str_repeat('a', 64).'@'.str_repeat('b', 63).'.'.str_repeat('c', 63).'.'.str_repeat('d', 57).'.com', true, false];
-        yield 'email 256' => ['email', str_repeat('a', 64).'@'.str_repeat('b', 63).'.'.str_repeat('c', 63).'.'.str_repeat('d', 59).'.com', false, false];
+        yield 'email 254' => ['email', str_repeat('a', 64).'@'.str_repeat('b', 63).'.'.str_repeat('c', 62).'.'.str_repeat('d', 58).'.com', true, false];
+        yield 'email 255' => ['email', str_repeat('a', 64).'@'.str_repeat('b', 63).'.'.str_repeat('c', 62).'.'.str_repeat('d', 59).'.com', true, false];
+        yield 'email 256' => ['email', str_repeat('a', 64).'@'.str_repeat('b', 63).'.'.str_repeat('c', 62).'.'.str_repeat('d', 60).'.com', false, false];
         yield 'password 7' => ['password', '1234567', false, false];
         yield 'password 8' => ['password', '12345678', true, false];
         yield 'confirmation mismatch' => ['password_confirmation', 'different', false, false];

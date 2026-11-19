@@ -34,12 +34,12 @@ test("registration, document, rejection, resubmission, partial approval and priv
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Periksa data pengajuan");
-  await expect(page.getByRole("textbox", { name: /^Provider/ })).toBeFocused();
+  await expect(page.getByLabel(/^Provider/)).toBeFocused();
   await page
-    .getByRole("textbox", { name: /^Provider/ })
+    .getByLabel(/^Provider/)
     .fill("Matrix hospital");
   await page
-    .getByRole("textbox", { name: /^Kategori klaim/ })
+    .getByLabel(/^Kategori klaim/)
     .fill("Outpatient");
   await page.getByRole("spinbutton", { name: /^Nominal klaim/ }).fill("0");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
@@ -73,6 +73,10 @@ test("registration, document, rejection, resubmission, partial approval and priv
     await signIn(analyst, "analyst@e2e.example.test");
     await expect(analyst).toHaveURL(new RegExp("/claims/" + id + "$"));
     await analyst.reload();
+    await expect(analyst.getByRole("heading", { name: id, exact: true })).toBeVisible();
+    await analyst.getByRole("link", { name: "Belum ditugaskan", exact: true }).click();
+    await expect(analyst).toHaveURL(/\/claims\?scope=unassigned$/);
+    await analyst.getByRole("link", { name: id, exact: true }).click();
     await analyst.getByRole("button", { name: "Ambil tugas" }).click();
     await analyst
       .getByLabel("Status", { exact: true })
