@@ -6,6 +6,7 @@ artifacts/
 playwright-report/
 test-results/
 .cache/
+.npm-cache/
 .terraform/
 *.tfstate
 *.tfstate.*

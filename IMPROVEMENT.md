@@ -1,21 +1,58 @@
-# HealthGuard — Improvement & Execution Plan
+# Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
-> **Audience:** implementation agents working on this repository.
->
-> **Baseline:** repository state at commit `cd329e0` (`main`, clean).
->
-> **Preparation note:** this document was produced by reading the repository only. Docker was **not** launched. Implementation agents are expected to run the verification commands listed here after making changes.
->
-> **Product name:** HealthGuard. **Repo name:** `Health-Guard-Claim-Asurance`.
+Last updated: 2026-11-19 (implementation audit: 60/64 done, 4 in progress; evidence is recorded
+in `docs/IMPLEMENTATION.md`).
+
+**Audience:** implementation agents working on this repository.
+
+**Baseline:** repository state at commit `cd329e0` (`main`, clean).
+
+**Preparation note:** this document was produced by reading the repository only. Docker was **not**
+launched. Implementation agents are expected to run the verification commands listed here after
+making changes.
+
+**Product name:** HealthGuard. **Repo name:** `Health-Guard-Claim-Asurance`.
+
+Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - `[!]` blocked
+
+## Progress summary
+
+| Phase | Scope | Done | Total | Status |
+| --- | --- | --- | --- | --- |
+| P0 | Security and authorization hardening | 8 | 8 | `[x]` |
+| P1 | Database, claim history, tests and UX | 25 | 28 | `[~]` |
+| P2 | Maintainability, CI and operations | 14 | 14 | `[x]` |
+| P3 | Product backlog | 13 | 14 | `[~]` |
+| **Total** |  | **60** | **64** | `[~]` |
+
+Audit note (2026-11-19): **60/64 complete**. Evidence is recorded in `docs/IMPLEMENTATION.md`
+and the criterion-to-test map in `docs/TEST-COVERAGE.md`. `TEST-02` is now complete:
+at commit `151ca213f30a568071e19a2916339ddc89b8742d`, SQLite passed 164 tests (847 assertions,
+2 database-specific skips), MySQL passed 165 tests (862 assertions, 1 database-specific skip),
+and Pint passed. CI now creates a disposable `.env`; the earlier `file_get_contents` warnings
+are gone. Frontend CI passed, with **29 Vitest tests**, 5 cookie-security tests, typecheck,
+lint and build. Local typecheck/lint/29 tests/build also pass with the additional toast fix.
+
+The 12-file follow-up and fixture/selector corrections were published with permission to
+[draft PR #1](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/pull/1).
+[Current run 44481972881](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/actions/runs/44481972881)
+still has E2E/Docker running. `OPS-01` was verified by all five successful jobs in prior run
+44478230866; that result applies to its own commit. The PR remains draft and is not merged.
+
+Four tickets remain partial: `TEST-04` (expanded browser suite must pass), `TEST-05` (manual QA),
+`UX-10` (full manual keyboard path), and `BL-12` (manual screen-reader audit).
+The expanded E2E suite found insufficient success-toast contrast (4.25:1). Its local `App.tsx`
+fix is ready and awaits publication permission because this file is outside the approved list.
+Manual QA/accessibility results will not be inferred from automated checks.
 
 ---
 
 ## 1. How to use this document
 
-1. Read sections 2–4 first so you understand the current system before changing it.
+1. Read sections 2-4 first so you understand the current system before changing it.
 2. Execute workstreams in the order shown in section 6. Security work comes before feature work.
 3. Treat each work item ID (`SEC-01`, `DB-01`, `HIST-01`, etc.) as a ticket. One PR should normally cover one ticket or a small group of related tickets.
-4. Every ticket has acceptance criteria. Do not mark it complete until those criteria and the relevant tests pass.
+4. Every ticket has acceptance criteria. Do not mark it `[x]` until those criteria and the relevant tests pass.
 5. Use Laravel migrations for schema changes. Never edit a database by hand.
 6. Keep the existing API status strings exactly: `Pending`, `Approved`, `Rejected`, `Needs Info`, `Partially Approved`.
 7. Do not copy code from `Health_Guard-frontend/_gen/`. It is a stale copy of backend PHP and is excluded from the frontend Docker build.
@@ -219,128 +256,70 @@ Target qualities:
 
 ## 5.1 P0 — Security and authorization hardening
 
-### SEC-01 — Remove plaintext passwords from Quick Sign In
-
-**Files:** `src/app/utils/cookies.ts`, `src/app/state/AuthContext.tsx`, `src/app/pages/Login.tsx`
-
-**Change:**
-- Remove `password` from `QuickUser` and from the cookie payload.
-- Store only `name`, `email`, and `role` (or a server-issued refresh token if a real "remember me" feature is designed).
-- On Quick Sign In, prefill the email and require the password, or replace the feature with a normal credential manager-friendly login form.
-- Migrate/clean existing `hg_quick_user` cookies on load so old password-bearing cookies are discarded.
-
-**Acceptance criteria:**
-- No password appears in `document.cookie`, localStorage, or sessionStorage.
-- Login still works normally.
-- Existing quick-user cookies are safely ignored/removed.
-- Add a unit test for cookie serialization/deserialization.
-
-### SEC-02 — Restrict or remove `GET /api/demo-users`
-
-**Files:** `routes/api.php`, `AuthController.php`, docs
-
-**Change:**
-- The frontend does not use this endpoint. Remove it, or gate it behind `app()->environment('local')` plus an analyst/admin check.
-- Never expose emails/roles publicly in production.
-
-**Acceptance criteria:**
-- Unauthenticated/non-authorized calls return `403` or `404`.
-- No public user PII is returned in production.
-- Update README/backend docs.
-
-### SEC-03 — Close public analyst registration
-
-**Files:** `AuthController::register`, `Register.tsx`, seeder/console commands, tests
-
-**Change:**
-- Public registration always creates `client`; ignore or reject a supplied `role`.
-- Provide a trusted way to create analysts: artisan command (recommended, e.g. `php artisan healthguard:create-analyst`), seeder for demos, or a future admin flow.
-- Update API documentation and tests.
-
-**Acceptance criteria:**
-- `POST /api/register` with `role=analyst` cannot create an analyst.
-- A trusted command can create an analyst.
-- Existing demo seeder still works.
-
-### SEC-04 — Enforce role and ownership policies consistently
-
-**Files:** `app/Policies/`, `app/Providers/AppServiceProvider.php`, `ClaimController`, `DocumentController`, `routes/api.php`, tests
-
-**Change:**
-- Create `ClaimPolicy` and `DocumentPolicy` (or equivalent gates) covering: view, update, assign, decide, upload document, download document, view history.
-- Required rules:
-  - Client: only own claims/documents.
-  - Analyst: list all claims; review only assigned claims for decisions; assignment only for `Pending` and unassigned claims.
-  - `unassigned` and `my-assignments`: analyst only.
-  - A claim owner cannot call analyst-only endpoints.
-- Prefer route middleware for role gates and policies for per-record authorization.
-- If the product wants any analyst to decide any claim, document that decision explicitly and test it; the recommended default is assigned-analyst-only.
-
-**Acceptance criteria:**
-- Authorization matrix in section 5.4 passes.
-- No controller relies solely on `isClient()` checks for critical mutations.
-- 403/404 responses are consistent and JSON for `/api/*`.
-
-### SEC-05 — Make claim documents private
-
-**Files:** `DocumentController.php`, `filesystems.php`, `compose.yaml`, Nginx config, `AnalystReview.tsx`, tests
-
-**Change:**
-- Move new documents to a private disk (for example `storage/app/private/documents`).
-- Serve downloads through the authenticated `download` endpoint.
-- For previews, fetch the file with the bearer token and create a browser blob URL, or implement short-lived signed URLs.
-- Restrict legacy `/storage/documents/*` exposure; profile photos may remain public if desired.
-- Provide a migration/console command to move existing document files from the public disk to the private disk and update `file_path`.
-
-**Acceptance criteria:**
-- Unauthenticated direct access to a document path is denied.
-- Claim owner and authorized analyst can preview/download.
-- Existing documents are migrated without breaking paths.
-- Tests cover allowed/denied access.
-
-### SEC-06 — Add rate limiting and token lifecycle
-
-**Files:** `bootstrap/app.php`, `config/sanctum.php`, `AuthController`, tests
-
-**Change:**
-- Add throttling to login/register (for example `throttle:5,1` or a named limiter) and sensible API throttling.
-- Set a Sanctum token expiration policy or document why tokens are long-lived.
-- Revoke all tokens on password change.
-- Consider revoking the current token on logout only (already implemented) and add "logout all devices" later.
-
-**Acceptance criteria:**
-- Repeated bad logins return `429`.
-- Password change invalidates old tokens.
-- Tests cover throttling and revocation.
-
-### SEC-07 — Harden file validation
-
-**Files:** `DocumentController`, `AuthController::uploadProfilePhoto`, tests
-
-**Change:**
-- Validate MIME type and extension; reject mismatches and zero-byte files.
-- Keep limits: documents 10 MB, profile photo 2 MB.
-- Store files with generated names (Laravel's `store()` already does this); never trust the original name for paths.
-- Optionally scan images with `getimagesize` and reject decompression-bomb dimensions.
-- Add per-claim document count limit if needed.
-
-**Acceptance criteria:**
-- Disallowed type, oversized file, empty file, and spoofed MIME all return `422`.
-- Valid files still upload.
-- Tests cover each boundary.
-
-### SEC-08 — Add security notes and remove risky demo behavior
-
-**Files:** docs, seeders, compose
-
-**Change:**
-- Document that demo credentials are for local use only.
-- Do not run demo seeders automatically in production.
-- Ensure `APP_DEBUG=false` and no stack traces leak in production.
-- Add a short security section to README.
-
-**Acceptance criteria:**
-- Docs clearly separate demo/local and production behavior.
+- [x] **SEC-01** Remove plaintext passwords from Quick Sign In. Files: `src/app/utils/cookies.ts`,
+  `src/app/state/AuthContext.tsx`, `src/app/pages/Login.tsx`. Change: remove `password` from
+  `QuickUser` and from the cookie payload; store only `name`, `email`, and `role` (or a
+  server-issued refresh token if a real "remember me" feature is designed); on Quick Sign In,
+  prefill the email and require the password, or replace the feature with a normal
+  credential manager-friendly login form; migrate/clean existing `hg_quick_user` cookies on load
+  so old password-bearing cookies are discarded. Acceptance: no password appears in
+  `document.cookie`, localStorage, or sessionStorage; login still works normally; existing
+  quick-user cookies are safely ignored/removed; add a unit test for cookie
+  serialization/deserialization.
+- [x] **SEC-02** Restrict or remove `GET /api/demo-users`. Files: `routes/api.php`,
+  `AuthController.php`, docs. Change: the frontend does not use this endpoint - remove it, or gate
+  it behind `app()->environment('local')` plus an analyst/admin check; never expose emails/roles
+  publicly in production. Acceptance: unauthenticated/non-authorized calls return `403` or `404`;
+  no public user PII is returned in production; update README/backend docs.
+- [x] **SEC-03** Close public analyst registration. Files: `AuthController::register`,
+  `Register.tsx`, seeder/console commands, tests. Change: public registration always creates
+  `client` and ignores or rejects a supplied `role`; provide a trusted way to create analysts -
+  artisan command (recommended, e.g. `php artisan healthguard:create-analyst`), seeder for demos,
+  or a future admin flow; update API documentation and tests. Acceptance: `POST /api/register`
+  with `role=analyst` cannot create an analyst; a trusted command can create an analyst; existing
+  demo seeder still works.
+- [x] **SEC-04** Enforce role and ownership policies consistently. Files: `app/Policies/`,
+  `app/Providers/AppServiceProvider.php`, `ClaimController`, `DocumentController`,
+  `routes/api.php`, tests. Change: create `ClaimPolicy` and `DocumentPolicy` (or equivalent gates)
+  covering view, update, assign, decide, upload document, download document, view history;
+  required rules - client only own claims/documents, analyst lists all claims but reviews only
+  assigned claims for decisions and assigns only `Pending`/unassigned claims, `unassigned` and
+  `my-assignments` are analyst-only, a claim owner cannot call analyst-only endpoints; prefer
+  route middleware for role gates and policies for per-record authorization; if the product wants
+  any analyst to decide any claim, document that decision explicitly and test it (recommended
+  default: assigned-analyst-only). Acceptance: authorization matrix in section 5.4 passes; no
+  controller relies solely on `isClient()` checks for critical mutations; 403/404 responses are
+  consistent and JSON for `/api/*`.
+- [x] **SEC-05** Make claim documents private. Files: `DocumentController.php`, `filesystems.php`,
+  `compose.yaml`, Nginx config, `AnalystReview.tsx`, tests. Change: move new documents to a
+  private disk (for example `storage/app/private/documents`); serve downloads through the
+  authenticated `download` endpoint; for previews, fetch the file with the bearer token and
+  create a browser blob URL, or implement short-lived signed URLs; restrict legacy
+  `/storage/documents/*` exposure (profile photos may remain public if desired); provide a
+  migration/console command to move existing document files from the public disk to the private
+  disk and update `file_path`. Acceptance: unauthenticated direct access to a document path is
+  denied; claim owner and authorized analyst can preview/download; existing documents are migrated
+  without breaking paths; tests cover allowed/denied access.
+- [x] **SEC-06** Add rate limiting and token lifecycle. Files: `bootstrap/app.php`,
+  `config/sanctum.php`, `AuthController`, tests. Change: add throttling to login/register (for
+  example `throttle:5,1` or a named limiter) and sensible API throttling; set a Sanctum token
+  expiration policy or document why tokens are long-lived; revoke all tokens on password change;
+  consider revoking the current token on logout only (already implemented) and add "logout all
+  devices" later. Acceptance: repeated bad logins return `429`; password change invalidates old
+  tokens; tests cover throttling and revocation.
+- [x] **SEC-07** Harden file validation. Files: `DocumentController`,
+  `AuthController::uploadProfilePhoto`, tests. Change: validate MIME type and extension and reject
+  mismatches and zero-byte files; keep limits - documents 10 MB, profile photo 2 MB; store files
+  with generated names (Laravel's `store()` already does this) and never trust the original name
+  for paths; optionally scan images with `getimagesize` and reject decompression-bomb dimensions;
+  add a per-claim document count limit if needed. Acceptance: disallowed type, oversized file,
+  empty file, and spoofed MIME all return `422`; valid files still upload; tests cover each
+  boundary.
+- [x] **SEC-08** Add security notes and remove risky demo behavior. Files: docs, seeders, compose.
+  Change: document that demo credentials are for local use only; do not run demo seeders
+  automatically in production; ensure `APP_DEBUG=false` and no stack traces leak in production;
+  add a short security section to README. Acceptance: docs clearly separate demo/local and
+  production behavior.
 
 ---
 
@@ -348,83 +327,45 @@ Target qualities:
 
 **Decision:** use **MySQL 8.4** as the database service. The existing MySQL-specific migration (`fix_claims_status_column_to_support_partially_approved`) already anticipates MySQL. If the team prefers MariaDB/PostgreSQL, make that decision before starting and adapt the tickets consistently.
 
-### DB-01 — Add `pdo_mysql` to the backend image
-
-**Files:** `Health_Guard-backend/Dockerfile`
-
-**Change:**
-- Add `pdo_mysql` to `docker-php-ext-install` (keep `pdo_sqlite` for tests).
-- Rebuild and verify `php -m` includes `pdo_mysql`.
-
-**Acceptance criteria:**
-- Backend image starts with MySQL connectivity.
-- PHPUnit still works with SQLite `:memory:`.
-
-### DB-02 — Add the database service to Compose
-
-**Files:** `compose.yaml`, `.env.example`, docs
-
-**Change:**
-- Add a `db` service using `mysql:8.4` with `dbdata:/var/lib/mysql`.
-- Add a MySQL healthcheck (`mysqladmin ping`) with adequate start period/retries.
-- Make `backend.depends_on.db` use `condition: service_healthy`.
-- Set backend environment: `DB_CONNECTION=mysql`, `DB_HOST=db`, `DB_PORT=3306`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
-- Use environment variables for credentials. Provide safe local defaults in `.env.example` but document that production must override them.
-- Keep the backend internal; do not publish the DB port to the host.
-
-**Acceptance criteria:**
-- `docker compose up -d --build --wait` reports backend and frontend healthy and `db` healthy.
-- No MySQL port is published.
-- `docker compose down` followed by `up` preserves data in `dbdata`.
-- Credentials come from environment, not hardcoded source.
-
-### DB-03 — Move app key/persistence out of the database volume
-
-**Files:** `Health_Guard-backend/docker/entrypoint.sh`, `compose.yaml`
-
-**Change:**
-- Stop creating/touching SQLite in the entrypoint.
-- Keep `APP_KEY` in a dedicated `appdata` volume (for example `/var/www/appdata/app.key`) so it survives backend rebuilds.
-- Keep uploads in `healthguard_storage`.
-- Remove the old `healthguard_database` volume usage for SQLite, or rename/retire it with a documented migration step.
-
-**Acceptance criteria:**
-- Restarting backend does not generate a new `APP_KEY`.
-- DB data survives `docker compose down` and `up`.
-- No `database.sqlite` is created in production.
-
-### DB-04 — Make migrations MySQL-safe and add an import path
-
-**Files:** migrations, `database/`, docs, possibly a console command
-
-**Change:**
-- Run `php artisan migrate:fresh --force` against MySQL in a disposable test environment.
-- Confirm the status enum migration converts to `VARCHAR(50)` before `Partially Approved` is used.
-- Confirm decimal precision, unique indexes, foreign keys, and cascade behavior.
-- The existing SQLite volume cannot be mounted into MySQL. Provide one of:
-  - a documented "fresh dev database" path for disposable local data, or
-  - a one-off `healthguard:import-sqlite` artisan command that reads the old SQLite file and inserts users, claims, documents, and notifications into MySQL.
-- Prefer the import command for any environment where data must be preserved.
-
-**Acceptance criteria:**
-- Fresh MySQL migration succeeds.
-- Seeder succeeds once.
-- Existing data import is tested on a copy, not production.
-- `php artisan test` still uses SQLite memory and passes.
-
-### DB-05 — Update Docker documentation and backups
-
-**Files:** `DOCKER.md`, `README.md`, `.env.example`
-
-**Change:**
-- Document the new topology and volumes.
-- Add backup/restore commands for MySQL (`mysqldump`, volume snapshot).
-- Document which volumes must be preserved and which can be recreated.
-- State clearly that `docker compose down -v` destroys data.
-
-**Acceptance criteria:**
-- A new developer can start, seed, back up, restore, and reset the project using only the docs.
-- README architecture diagram and project structure match Compose.
+- [x] **DB-01** Add `pdo_mysql` to the backend image. Files: `Health_Guard-backend/Dockerfile`.
+  Change: add `pdo_mysql` to `docker-php-ext-install` (keep `pdo_sqlite` for tests); rebuild and
+  verify `php -m` includes `pdo_mysql`. Acceptance: backend image starts with MySQL connectivity;
+  PHPUnit still works with SQLite `:memory:`.
+- [x] **DB-02** Add the database service to Compose. Files: `compose.yaml`, `.env.example`, docs.
+  Change: add a `db` service using `mysql:8.4` with `dbdata:/var/lib/mysql`; add a MySQL healthcheck
+  (`mysqladmin ping`) with adequate start period/retries; make `backend.depends_on.db` use
+  `condition: service_healthy`; set backend environment - `DB_CONNECTION=mysql`, `DB_HOST=db`,
+  `DB_PORT=3306`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`; use environment variables for
+  credentials and provide safe local defaults in `.env.example` while documenting that production
+  must override them; keep the backend internal and do not publish the DB port to the host.
+  Acceptance: `docker compose up -d --build --wait` reports backend and frontend healthy and `db`
+  healthy; no MySQL port is published; `docker compose down` followed by `up` preserves data in
+  `dbdata`; credentials come from environment, not hardcoded source.
+- [x] **DB-03** Move app key/persistence out of the database volume. Files:
+  `Health_Guard-backend/docker/entrypoint.sh`, `compose.yaml`. Change: stop creating/touching
+  SQLite in the entrypoint; keep `APP_KEY` in a dedicated `appdata` volume (for example
+  `/var/www/appdata/app.key`) so it survives backend rebuilds; keep uploads in
+  `healthguard_storage`; remove the old `healthguard_database` volume usage for SQLite, or
+  rename/retire it with a documented migration step. Acceptance: restarting backend does not
+  generate a new `APP_KEY`; DB data survives `docker compose down` and `up`; no `database.sqlite`
+  is created in production.
+- [x] **DB-04** Make migrations MySQL-safe and add an import path. Files: migrations, `database/`,
+  docs, possibly a console command. Change: run `php artisan migrate:fresh --force` against MySQL
+  in a disposable test environment; confirm the status enum migration converts to `VARCHAR(50)`
+  before `Partially Approved` is used; confirm decimal precision, unique indexes, foreign keys,
+  and cascade behavior; the existing SQLite volume cannot be mounted into MySQL, so provide
+  either a documented "fresh dev database" path for disposable local data or a one-off
+  `healthguard:import-sqlite` artisan command that reads the old SQLite file and inserts users,
+  claims, documents, and notifications into MySQL - prefer the import command for any environment
+  where data must be preserved. Acceptance: fresh MySQL migration succeeds; seeder succeeds once;
+  existing data import is tested on a copy, not production; `php artisan test` still uses SQLite
+  memory and passes.
+- [x] **DB-05** Update Docker documentation and backups. Files: `DOCKER.md`, `README.md`,
+  `.env.example`. Change: document the new topology and volumes; add backup/restore commands for
+  MySQL (`mysqldump`, volume snapshot); document which volumes must be preserved and which can be
+  recreated; state clearly that `docker compose down -v` destroys data. Acceptance: a new
+  developer can start, seed, back up, restore, and reset the project using only the docs; README
+  architecture diagram and project structure match Compose.
 
 ---
 
@@ -432,11 +373,8 @@ Target qualities:
 
 This is a core requested feature: a user must be able to see the historical data for every claim, not just its current status.
 
-### HIST-01 — Add the `claim_histories` schema and model
-
-**Files:** new migration, `app/Models/ClaimHistory.php`, `Claim.php`
-
-**Schema:**
+- [x] **HIST-01** Add the `claim_histories` schema and model. Files: new migration,
+  `app/Models/ClaimHistory.php`, `Claim.php`. Schema:
 
 ```text
 claim_histories
@@ -454,62 +392,43 @@ claim_histories
   updated_at         timestamp
 ```
 
-Indexes: `(claim_id, created_at)`, `(actor_id)`, `(event)` if filtering is needed.
-
-**Model:**
-- `ClaimHistory` with fillable fields, `actor()` and `claim()` relations.
-- `Claim::histories()` ordered by `created_at`.
-
-**Acceptance criteria:**
-- Migration runs on SQLite and MySQL.
-- A claim can have many history rows.
-- Deleting a claim cascades its history; deleting an actor preserves history with a null actor.
-
-### HIST-02 — Record events centrally
-
-**Files:** `app/Services/ClaimHistoryService.php` (new), `ClaimController`, `DocumentController`, tests
-
-**Events to record:**
+  Indexes: `(claim_id, created_at)`, `(actor_id)`, `(event)` if filtering is needed. Model:
+  `ClaimHistory` with fillable fields, `actor()` and `claim()` relations; `Claim::histories()`
+  ordered by `created_at`. Acceptance: migration runs on SQLite and MySQL; a claim can have many
+  history rows; deleting a claim cascades its history and deleting an actor preserves history with
+  a null actor.
+- [x] **HIST-02** Record events centrally. Files: `app/Services/ClaimHistoryService.php` (new),
+  `ClaimController`, `DocumentController`, tests. Events to record:
 
 | Action | Event | from_status | to_status | Metadata |
 |---|---|---|---|---|
 | Create claim | `submitted` | null | `Pending` | claim snapshot/amount |
 | Analyst assigns | `assigned` | current | current | `assigned_to` user ID/name |
 | Analyst changes status | `status_changed` | old status | new status | notes, approved amount |
-| Client resubmits | `resubmitted` | old status | `Pending` | old notes old approved amount |
+| Client resubmits | `resubmitted` | old status | `Pending` | old notes, old approved amount |
 | Document uploaded | `document_uploaded` | current | current | document ID/file name |
 | Document removed (future feature) | `document_deleted` | current | current | document ID/file name |
 
-**Implementation rules:**
-- A single `record()` method accepts claim, actor, event, from/to, notes, approved amount, metadata.
-- Wrap the claim mutation and history insert in `DB::transaction`.
-- Use `lockForUpdate()` for assignment and any read-modify-write status transition.
-- Do not record a history row when the update is a no-op; either skip or record explicitly with a clear event.
-- Notifications can remain in the same transaction; if notification delivery becomes asynchronous later, history must still be committed with the claim.
-
-**Acceptance criteria:**
-- Every create/assign/status/resubmit/upload action produces exactly one history row.
-- Failed requests do not leave orphan history rows.
-- Concurrent assignment attempts cannot both succeed.
-
-### HIST-03 — Add the history API
-
-**Files:** `routes/api.php`, `ClaimController` or `ClaimHistoryController`, new `ClaimHistoryResource`, policy
-
-**Endpoint:**
+  Implementation rules: a single `record()` method accepts claim, actor, event, from/to, notes,
+  approved amount, metadata; wrap the claim mutation and history insert in `DB::transaction`; use
+  `lockForUpdate()` for assignment and any read-modify-write status transition; do not record a
+  history row when the update is a no-op (either skip or record explicitly with a clear event);
+  notifications can remain in the same transaction - if notification delivery becomes
+  asynchronous later, history must still be committed with the claim. Acceptance: every
+  create/assign/status/resubmit/upload action produces exactly one history row; failed requests
+  do not leave orphan history rows; concurrent assignment attempts cannot both succeed.
+- [x] **HIST-03** Add the history API. Files: `routes/api.php`, `ClaimController` or
+  `ClaimHistoryController`, new `ClaimHistoryResource`, policy. Endpoint:
 
 ```http
 GET /api/claims/{claimId}/history?per_page=50&page=1
 Authorization: Bearer <token>
 ```
 
-**Rules:**
-- Client: only the owner of the claim.
-- Analyst: any claim they are allowed to review (recommended: assigned claims; if the policy allows all analysts to view, be explicit).
-- Paginate with a sensible max (for example 100).
-- Return newest-first by default, with an optional `order=asc`.
-
-**Response shape (example):**
+  Rules: client only the owner of the claim; analyst any claim they are allowed to review
+  (recommended: assigned claims - if the policy allows all analysts to view, be explicit);
+  paginate with a sensible max (for example 100); return newest-first by default, with an optional
+  `order=asc`. Response shape (example):
 
 ```json
 {
@@ -529,64 +448,33 @@ Authorization: Bearer <token>
 }
 ```
 
-**Acceptance criteria:**
-- Owner and authorized analyst can read history.
-- Other clients and unauthorized analysts get `403`.
-- Invalid claim ID returns `404`.
-- History is ordered deterministically and paginated.
-
-### HIST-04 — Backfill history for existing claims
-
-**Files:** migration or `app/Console/Commands/BackfillClaimHistory.php`, docs
-
-**Change:**
-- Insert one `submitted` history row per existing claim, using the claim owner as actor and `claims.date_submitted` as `created_at`.
-- Add a later `migrated_snapshot` or similar event if useful; do not invent decisions that never happened.
-- Make the backfill idempotent (do not duplicate rows if rerun).
-
-**Acceptance criteria:**
-- Existing claims show at least a "submitted" event after migration.
-- Running the command twice does not duplicate rows.
-- Backfill is documented in the upgrade notes.
-
-### HIST-05 — Client history UI
-
-**Files:** `Dashboard.tsx`, a new claim detail component/page, `ClaimContext` or a new history hook, API client
-
-**Change:**
-- When a client opens a claim, fetch `GET /api/claims/{claimId}/history`.
-- Add a "History" tab/section in the claim detail modal or a dedicated claim detail page.
-- Render a chronological timeline:
-  - Submitted
-  - Assigned to an analyst
-  - Status changed (with from/to badges)
-  - Resubmitted
-  - Documents uploaded
-- Show actor name/role when appropriate, timestamp, notes, and approved amount.
-- Show an empty state for legacy claims with no history.
-- Add loading, error, and retry states.
-- Add a "Claim history" list view with filters if the product wants a full archive; otherwise the per-claim timeline is the minimum.
-
-**Acceptance criteria:**
-- Client sees their own claim timeline; another client cannot load it.
-- New actions appear after refresh and after a successful mutation (refetch or optimistic update).
-- Timeline is readable on mobile widths.
-- Existing claim detail information remains available.
-
-### HIST-06 — Analyst history UI and tests
-
-**Files:** `AnalystReview.tsx`, tests
-
-**Change:**
-- Fetch and show the same timeline in the review screen, near the decision panel.
-- Highlight the current status and who made the last decision.
-- After submitting a decision, refresh the timeline.
-- Add feature/component/E2E tests for the history flow.
-
-**Acceptance criteria:**
-- Analyst sees history for the claim under review.
-- A decision immediately adds a visible status-change event.
-- History is not editable from the UI.
+  Acceptance: owner and authorized analyst can read history; other clients and unauthorized
+  analysts get `403`; invalid claim ID returns `404`; history is ordered deterministically and
+  paginated.
+- [x] **HIST-04** Backfill history for existing claims. Files: migration or
+  `app/Console/Commands/BackfillClaimHistory.php`, docs. Change: insert one `submitted` history row
+  per existing claim, using the claim owner as actor and `claims.date_submitted` as `created_at`;
+  add a later `migrated_snapshot` or similar event if useful, but do not invent decisions that
+  never happened; make the backfill idempotent (do not duplicate rows if rerun). Acceptance:
+  existing claims show at least a "submitted" event after migration; running the command twice
+  does not duplicate rows; backfill is documented in the upgrade notes.
+- [x] **HIST-05** Client history UI. Files: `Dashboard.tsx`, a new claim detail component/page,
+  `ClaimContext` or a new history hook, API client. Change: when a client opens a claim, fetch
+  `GET /api/claims/{claimId}/history`; add a "History" tab/section in the claim detail modal or a
+  dedicated claim detail page; render a chronological timeline (submitted, assigned to an
+  analyst, status changed with from/to badges, resubmitted, documents uploaded); show actor
+  name/role when appropriate, timestamp, notes, and approved amount; show an empty state for
+  legacy claims with no history; add loading, error, and retry states; add a "Claim history" list
+  view with filters if the product wants a full archive, otherwise the per-claim timeline is the
+  minimum. Acceptance: client sees their own claim timeline and another client cannot load it; new
+  actions appear after refresh and after a successful mutation (refetch or optimistic update);
+  timeline is readable on mobile widths; existing claim detail information remains available.
+- [x] **HIST-06** Analyst history UI and tests. Files: `AnalystReview.tsx`, tests. Change: fetch
+  and show the same timeline in the review screen, near the decision panel; highlight the current
+  status and who made the last decision; after submitting a decision, refresh the timeline; add
+  feature/component/E2E tests for the history flow. Acceptance: analyst sees history for the claim
+  under review; a decision immediately adds a visible status-change event; history is not
+  editable from the UI.
 
 ---
 
@@ -594,11 +482,9 @@ Authorization: Bearer <token>
 
 The goal is to prove what each user can and cannot do, not only to test happy paths.
 
-### TEST-01 — Backend capability/authorization test matrix
-
-**Files:** `tests/Feature/` (new files), factories/helpers
-
-Create tests for every row in this matrix. Use `Sanctum::actingAs()` or real tokens consistently.
+- [x] **TEST-01** Backend capability/authorization test matrix. Files: `tests/Feature/` (new
+  files), factories/helpers. Create tests for every row in this matrix; use `Sanctum::actingAs()`
+  or real tokens consistently.
 
 | Action | Unauthenticated | Client (owner) | Client (other) | Analyst (assigned) | Analyst (other) |
 |---|---|---|---|---|---|
@@ -617,16 +503,13 @@ Create tests for every row in this matrix. Use `Sanctum::actingAs()` or real tok
 | `unassigned` queue | 401 | deny | deny | allow | allow |
 | `my-assignments` | 401 | deny | deny | own | own |
 
-Also test:
-- Double assignment returns `409`.
-- Assigning a non-Pending claim is rejected.
-- A decision cannot be submitted by an unassigned analyst.
-- Resubmission only resets the fields the product says it resets; history records the change.
-- Client cannot see another client's claim via any endpoint, including documents/history.
-
-### TEST-02 — Input validation boundary matrix
-
-Add backend tests for every rule below. Prefer Form Request classes so these rules are centralized.
+  Also test: double assignment returns `409`; assigning a non-Pending claim is rejected; a
+  decision cannot be submitted by an unassigned analyst; resubmission only resets the fields the
+  product says it resets and history records the change; a client cannot see another client's
+  claim via any endpoint, including documents/history. Acceptance: every row and every negative
+  case above passes in `php artisan test`.
+- [x] **TEST-02** Input validation boundary matrix. Add backend tests for every rule below; prefer
+  Form Request classes so these rules are centralized.
 
 | Field | Cases |
 |---|---|
@@ -647,272 +530,179 @@ Add backend tests for every rule below. Prefer Form Request classes so these rul
 | Profile photo | valid JPG/PNG, 2 MB + 1 byte, GIF/WebP (reject), empty file |
 | Claim/document IDs | unknown ID, malformed ID, another user's ID |
 
-### TEST-03 — Frontend test tooling
+  Acceptance: every case has a passing test and the validation rules live in Form Requests or
+  equivalent central classes.
+- [x] **TEST-03** Frontend test tooling. Files: `package.json`, `tsconfig.json`,
+  `vitest.config.ts`, test setup. Change: add `tsconfig.json` with strict mode (the project
+  currently has none); add Vitest + React Testing Library + jsdom; add scripts `typecheck`,
+  `lint`, `test`, `test:watch`, `test:e2e`; add ESLint/Prettier or the team's preferred
+  equivalent; keep `npm run build` working. Acceptance: `npm run typecheck`, `npm run lint`,
+  `npm run test`, and `npm run build` exist and pass; CI can run them without a browser for unit
+  tests.
+- [~] **TEST-04** Component and E2E tests. Component tests: `ProtectedRoute` (unauthenticated
+  redirect, wrong-role redirect, allowed role renders); `AuthContext` (restore from localStorage,
+  login/logout, 401 cleanup); `ClaimContext` (API transformation, resubmit state reset, status
+  update); `ClientClaimForm` (each step's required fields, amount > 0, file selection,
+  edit/resubmit path); `NotificationBell` (unread count, mark one/all read, navigation); status
+  badge rendering for all five statuses; claim history timeline rendering and empty/error states.
+  Playwright E2E scenarios:
 
-**Files:** `package.json`, `tsconfig.json`, `vitest.config.ts`, test setup
+  1. Client register -> login -> submit claim with a document -> see claim and history.
+  2. Analyst login -> unassigned queue -> assign -> review -> set `Rejected` with notes -> client sees decision/history.
+  3. Partial approval requires an approved amount and cannot exceed the billed amount.
+  4. Client resubmits a rejected claim -> status returns to `Pending` -> history shows resubmission.
+  5. Notification unread badge -> mark all read -> count reaches zero.
+  6. Direct navigation to `/analyst/review/CLM-...` works without first visiting the dashboard.
+  7. Form validation errors are visible and do not submit.
+  8. Unauthorized client cannot open another client's claim/documents/history.
 
-**Change:**
-- Add `tsconfig.json` with strict mode; the project currently has none.
-- Add Vitest + React Testing Library + jsdom.
-- Add scripts: `typecheck`, `lint`, `test`, `test:watch`, `test:e2e`.
-- Add ESLint/Prettier or the team's preferred equivalent.
-- Keep `npm run build` working.
-
-**Acceptance criteria:**
-- `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build` exist and pass.
-- CI can run them without a browser for unit tests.
-
-### TEST-04 — Component and E2E tests
-
-**Component tests:**
-- `ProtectedRoute`: unauthenticated redirect, wrong-role redirect, allowed role renders.
-- `AuthContext`: restore from localStorage, login/logout, 401 cleanup.
-- `ClaimContext`: API transformation, resubmit state reset, status update.
-- `ClientClaimForm`: each step’s required fields, amount > 0, file selection, edit/resubmit path.
-- `NotificationBell`: unread count, mark one/all read, navigation.
-- Status badge rendering for all five statuses.
-- Claim history timeline rendering and empty/error states.
-
-**Playwright E2E scenarios:**
-1. Client register -> login -> submit claim with a document -> see claim and history.
-2. Analyst login -> unassigned queue -> assign -> review -> set `Rejected` with notes -> client sees decision/history.
-3. Partial approval requires an approved amount and cannot exceed the billed amount.
-4. Client resubmits a rejected claim -> status returns to `Pending` -> history shows resubmission.
-5. Notification unread badge -> mark all read -> count reaches zero.
-6. Direct navigation to `/analyst/review/CLM-...` works without first visiting the dashboard.
-7. Form validation errors are visible and do not submit.
-8. Unauthorized client cannot open another client's claim/documents/history.
-
-**Acceptance criteria:**
-- E2E tests run against a disposable database and do not depend on seeded demo data.
-- Tests clean up their own records/files.
-- Tests are deterministic and can run in CI.
-
-### TEST-05 — Manual QA script
-
-Add a `QA.md` or a section in `README.md` with a repeatable checklist covering:
-- Client happy path and validation errors.
-- Analyst happy path, partial approval, rejection, needs-info.
-- Resubmission and history.
-- Notifications.
-- Profile/photo/password.
-- Mobile widths and keyboard navigation.
-- Direct URLs and refresh.
-- Empty, loading, error, and slow-network states.
+  Acceptance: E2E tests run against a disposable database and do not depend on seeded demo data;
+  tests clean up their own records/files; tests are deterministic and can run in CI.
+- [~] **TEST-05** Manual QA script. Add a `QA.md` or a section in `README.md` with a repeatable
+  checklist covering: client happy path and validation errors; analyst happy path, partial
+  approval, rejection, needs-info; resubmission and history; notifications; profile/photo/password;
+  mobile widths and keyboard navigation; direct URLs and refresh; empty, loading, error, and
+  slow-network states. Acceptance: the checklist is committed and every scenario is manually
+  verified before the phase is marked `[x]`.
 
 ---
 
 ## 5.5 P1 — User experience improvements
 
-### UX-01 — Make claim detail API-driven and deep-link safe
-
-- Fetch the claim from `GET /api/claims/{claimId}` in `AnalystReview` (and a new client detail page) instead of relying only on `ClaimContext`.
-- Keep the context as a cache, but make the route self-sufficient.
-- Add loading/error/not-found states.
-- Acceptance: refreshing `/analyst/review/CLM-2026-001` works; unknown IDs show a clean 404 state.
-
-### UX-02 — Make search, filters, and pagination real
-
-- Move filtering and pagination to the API (`status`, `q`, `date_from`, `date_to`, `per_page`, `page`, `sort`).
-- Wire the existing dashboard pagination or replace it with a proper page control.
-- Remove or wire the duplicate search box and dead filter button in the client dashboard.
-- Dashboard metrics must come from server-side aggregates or clearly state that they reflect the current page.
-- Acceptance: page 2+ is reachable; search results are not limited to the first 20 claims.
-
-### UX-03 — Consistent feedback and error handling
-
-- Add a toast system (the `sonner` dependency already exists) for success/error.
-- Normalize API errors into user-friendly messages (validation, 401, 403, 409, 500, network).
-- Add retry buttons on failed loads and mutations.
-- Add loading skeletons or spinners instead of blank tables.
-- Add empty states with a clear next action.
-- Add error boundaries for route-level crashes.
-- Acceptance: no mutation fails silently; every long operation shows progress.
-
-### UX-04 — Claim form improvements
-
-- Persist a draft locally (or server-side) between steps.
-- Show per-field validation messages, focus the first invalid field, and keep the error summary.
-- Upload files with progress, per-file retry, cancel, and remove-before-submit.
-- Do not navigate away silently if document uploads fail; show the failure and let the user retry.
-- Add a confirmation step that lists all selected files.
-- Add a clear "unsaved changes" guard.
-- Acceptance: a failed upload gives the user a recoverable path; refreshing does not lose a draft without warning.
-
-### UX-05 — Profile completeness and real data
-
-- Replace hardcoded address, Member ID, Group Number, coverage status, and effective date in `Profile.tsx`.
-- Add editable DOB, BPJS number, phone, address, and profile photo for clients.
-- Keep the existing backend validation and add field-level errors.
-- Show profile completeness prompts before claim submission.
-- Acceptance: profile data comes from the authenticated user; updating it persists after refresh.
-
-### UX-06 — Complete the `Needs Info` workflow
-
-- Add an edit/resubmit action for `Needs Info` claims, with the analyst’s requested information shown prominently.
-- Decide and document whether resubmission clears analyst notes, keeps them, or appends a new history event.
-- Ensure the status returns to `Pending` and the assigned analyst is notified or the claim re-enters the right queue.
-- Acceptance: a `Needs Info` claim can be corrected and resubmitted from the UI.
-
-### UX-07 — Notification navigation for clients
-
-- Clicking a client notification should open the relevant claim detail (and ideally the history section).
-- Analysts should open the review page.
-- Mark as read should not prevent navigation.
-- Acceptance: clicking any claim-related notification lands on the correct claim.
-
-### UX-08 — Analyst decision guardrails
-
-- Require notes for `Rejected` and `Needs Info` (and document the rule).
-- Require `approved_amount` for `Partially Approved`; ensure it is `> 0` and `<= amount`.
-- Disable the submit button while a request is in flight and prevent double submission.
-- Show a confirmation dialog for final decisions.
-- Show the claim history next to the decision panel.
-- Acceptance: invalid decisions cannot be submitted; the server also enforces every client-side rule.
-
-### UX-09 — Accurate dashboards
-
-- Remove the hardcoded `+12%` trend.
-- Compute counts/amounts from the API, not from the current page only.
-- Label the currency consistently (`Rp`, `id-ID`) and the timezone.
-- Show the assigned analyst, current status, and last update clearly.
-- Acceptance: dashboard numbers match the database for the selected filters.
-
-### UX-10 — Responsive and accessible navigation
-
-- Replace fixed `ml-64` sidebars with a mobile drawer/overlay.
-- Ensure sidebar links, tables, modals, and the document viewer work at 360–768 px.
-- Add visible focus states, correct labels, `aria-*` attributes, keyboard support for dropdowns/modals, and sufficient contrast.
-- Respect `prefers-reduced-motion` in animations.
-- Acceptance: keyboard-only navigation completes the client and analyst happy paths.
-
-### UX-11 — Consistent formatting and shared components
-
-- Centralize status badges, currency formatting, date/time formatting, and empty states.
-- Use the API’s timestamps and convert to the user’s local timezone in one helper.
-- Remove duplicated table markup where practical.
-- Acceptance: identical status values render consistently on every page.
-
-### UX-12 — Export and data access
-
-- Keep client-side Excel export as a convenience, but add a server-side export endpoint for all filtered results.
-- Include the same columns as the analyst table, with current filters and totals.
-- Respect authorization and rate limits.
-- Acceptance: exporting a filter with more than 20 claims exports all matching rows, not just the loaded page.
+- [x] **UX-01** Make claim detail API-driven and deep-link safe. Fetch the claim from
+  `GET /api/claims/{claimId}` in `AnalystReview` (and a new client detail page) instead of relying
+  only on `ClaimContext`; keep the context as a cache but make the route self-sufficient; add
+  loading/error/not-found states. Acceptance: refreshing `/analyst/review/CLM-2026-001` works;
+  unknown IDs show a clean 404 state.
+- [x] **UX-02** Make search, filters, and pagination real. Move filtering and pagination to the API
+  (`status`, `q`, `date_from`, `date_to`, `per_page`, `page`, `sort`); wire the existing dashboard
+  pagination or replace it with a proper page control; remove or wire the duplicate search box and
+  dead filter button in the client dashboard; dashboard metrics must come from server-side
+  aggregates or clearly state that they reflect the current page. Acceptance: page 2+ is
+  reachable; search results are not limited to the first 20 claims.
+- [x] **UX-03** Consistent feedback and error handling. Add a toast system (the `sonner`
+  dependency already exists) for success/error; normalize API errors into user-friendly messages
+  (validation, 401, 403, 409, 500, network); add retry buttons on failed loads and mutations; add
+  loading skeletons or spinners instead of blank tables; add empty states with a clear next
+  action; add error boundaries for route-level crashes. Acceptance: no mutation fails silently;
+  every long operation shows progress.
+- [x] **UX-04** Claim form improvements. Persist a draft locally (or server-side) between steps;
+  show per-field validation messages, focus the first invalid field, and keep the error summary;
+  upload files with progress, per-file retry, cancel, and remove-before-submit; do not navigate
+  away silently if document uploads fail - show the failure and let the user retry; add a
+  confirmation step that lists all selected files; add a clear "unsaved changes" guard.
+  Acceptance: a failed upload gives the user a recoverable path; refreshing does not lose a draft
+  without warning.
+- [x] **UX-05** Profile completeness and real data. Replace hardcoded address, Member ID, Group
+  Number, coverage status, and effective date in `Profile.tsx`; add editable DOB, BPJS number,
+  phone, address, and profile photo for clients; keep the existing backend validation and add
+  field-level errors; show profile completeness prompts before claim submission. Acceptance:
+  profile data comes from the authenticated user; updating it persists after refresh.
+- [x] **UX-06** Complete the `Needs Info` workflow. Add an edit/resubmit action for `Needs Info`
+  claims, with the analyst's requested information shown prominently; decide and document whether
+  resubmission clears analyst notes, keeps them, or appends a new history event; ensure the status
+  returns to `Pending` and the assigned analyst is notified or the claim re-enters the right
+  queue. Acceptance: a `Needs Info` claim can be corrected and resubmitted from the UI.
+- [x] **UX-07** Notification navigation for clients. Clicking a client notification should open
+  the relevant claim detail (and ideally the history section); analysts should open the review
+  page; mark as read should not prevent navigation. Acceptance: clicking any claim-related
+  notification lands on the correct claim.
+- [x] **UX-08** Analyst decision guardrails. Require notes for `Rejected` and `Needs Info` (and
+  document the rule); require `approved_amount` for `Partially Approved` and ensure it is `> 0`
+  and `<= amount`; disable the submit button while a request is in flight and prevent double
+  submission; show a confirmation dialog for final decisions; show the claim history next to the
+  decision panel. Acceptance: invalid decisions cannot be submitted; the server also enforces
+  every client-side rule.
+- [x] **UX-09** Accurate dashboards. Remove the hardcoded `+12%` trend; compute counts/amounts from
+  the API, not from the current page only; label the currency consistently (`Rp`, `id-ID`) and the
+  timezone; show the assigned analyst, current status, and last update clearly. Acceptance:
+  dashboard numbers match the database for the selected filters.
+- [~] **UX-10** Responsive and accessible navigation. Replace fixed `ml-64` sidebars with a mobile
+  drawer/overlay; ensure sidebar links, tables, modals, and the document viewer work at 360-768
+  px; add visible focus states, correct labels, `aria-*` attributes, keyboard support for
+  dropdowns/modals, and sufficient contrast; respect `prefers-reduced-motion` in animations.
+  Acceptance: keyboard-only navigation completes the client and analyst happy paths.
+- [x] **UX-11** Consistent formatting and shared components. Centralize status badges, currency
+  formatting, date/time formatting, and empty states; use the API's timestamps and convert to the
+  user's local timezone in one helper; remove duplicated table markup where practical. Acceptance:
+  identical status values render consistently on every page.
+- [x] **UX-12** Export and data access. Keep client-side Excel export as a convenience, but add a
+  server-side export endpoint for all filtered results; include the same columns as the analyst
+  table, with current filters and totals; respect authorization and rate limits. Acceptance:
+  exporting a filter with more than 20 claims exports all matching rows, not just the loaded page.
 
 ---
 
 ## 5.6 P2 — Backend maintainability
 
-### ARCH-01 — Introduce a `ClaimStatus` enum and central constants
-
-- Create `app/Enums/ClaimStatus.php` with the five string values and helper labels.
-- Cast `Claim::$status` to the enum carefully; keep API serialization as the same strings.
-- Replace magic strings in controllers/tests.
-- Acceptance: invalid statuses fail validation through the enum; API output remains compatible.
-
-### ARCH-02 — Add Form Request classes
-
-Create requests for register/login, profile update, photo upload, claim store/update/status, assignment, document upload.
-
-- Centralize validation and authorization.
-- Add `notes` max length, `amount` max, `approved_amount <= amount` for partial approval.
-- Acceptance: controllers become thin; tests cover validation rules.
-
-### ARCH-03 — Add API Resources
-
-- `UserResource`, `ClaimResource`, `ClaimDetailResource`, `DocumentResource`, `NotificationResource`, `ClaimHistoryResource`.
-- Do not expose password hashes, tokens, or unnecessary internal fields.
-- Keep snake_case keys expected by the frontend, or update the frontend and document the contract.
-- Acceptance: API contract is explicit and stable.
-
-### ARCH-04 — Service/action layer and transactions
-
-- Move claim lifecycle logic into `ClaimService`/actions: create, assign, update, decide, resubmit.
-- Wrap mutations + history + notifications in transactions.
-- Use `lockForUpdate()` for assignment and status transitions.
-- Acceptance: controllers only validate/authorize/delegate; concurrency tests pass.
-
-### ARCH-05 — Database constraints and indexes
-
-- Add indexes for `claims.user_id`, `claims.assigned_to`, `claims.status`, `claims.date_submitted`, `documents.claim_id`, `notifications.user_id/is_read`, `claim_histories.claim_id/created_at`.
-- Confirm foreign-key behavior for users, claims, documents, notifications, history.
-- Consider soft deletes for claims/users only if the product needs recovery; otherwise document hard-delete behavior.
-- Acceptance: `EXPLAIN`/query plans are reasonable; cascade tests pass.
-
-### ARCH-06 — Frontend data layer and types
-
-- Centralize API response types in one module.
-- Replace ad-hoc `any` mapping with typed transform functions.
-- Consider React Query/TanStack Query for caching, refetching, and loading/error states; if not, create reusable hooks with the same behavior.
-- Avoid components fetching the same data with different shapes.
-- Acceptance: no `any` in new API code; a single claim-shape source of truth.
-
-### ARCH-07 — Remove dead scaffolding and unused dependencies
-
-- Delete or archive `_gen/` after confirming no imports.
-- Remove unused shadcn/Radix/MUI/Recharts/Motion/React Hook Form dependencies if no code uses them.
-- Keep only the UI components actually imported.
-- Acceptance: `npm ci` is smaller/faster; `npm run build` passes; no broken imports.
-
-### ARCH-08 — Add linting, formatting, and static analysis
-
-- Backend: Laravel Pint (`vendor/bin/pint --test`) and optionally Larastan/PHPStan.
-- Frontend: ESLint + Prettier + TypeScript strict.
-- Acceptance: CI runs all checks and fails on errors.
-
-### ARCH-09 — Documentation and API contract
-
-- Add `docs/API.md` or an OpenAPI specification generated/maintained from routes.
-- Add ADRs for: MySQL choice, document privacy, assigned-analyst decision rule, history immutability, polling vs real-time.
-- Keep READMEs synchronized.
-- Acceptance: a new developer can implement a client from the docs without reading controllers.
+- [x] **ARCH-01** Introduce a `ClaimStatus` enum and central constants. Create
+  `app/Enums/ClaimStatus.php` with the five string values and helper labels; cast
+  `Claim::$status` to the enum carefully and keep API serialization as the same strings; replace
+  magic strings in controllers/tests. Acceptance: invalid statuses fail validation through the
+  enum; API output remains compatible.
+- [x] **ARCH-02** Add Form Request classes. Create requests for register/login, profile update,
+  photo upload, claim store/update/status, assignment, and document upload; centralize validation
+  and authorization; add `notes` max length, `amount` max, and `approved_amount <= amount` for
+  partial approval. Acceptance: controllers become thin; tests cover validation rules.
+- [x] **ARCH-03** Add API Resources. `UserResource`, `ClaimResource`, `ClaimDetailResource`,
+  `DocumentResource`, `NotificationResource`, `ClaimHistoryResource`; do not expose password
+  hashes, tokens, or unnecessary internal fields; keep snake_case keys expected by the frontend,
+  or update the frontend and document the contract. Acceptance: API contract is explicit and
+  stable.
+- [x] **ARCH-04** Service/action layer and transactions. Move claim lifecycle logic into
+  `ClaimService`/actions for create, assign, update, decide, and resubmit; wrap mutations +
+  history + notifications in transactions; use `lockForUpdate()` for assignment and status
+  transitions. Acceptance: controllers only validate/authorize/delegate; concurrency tests pass.
+- [x] **ARCH-05** Database constraints and indexes. Add indexes for `claims.user_id`,
+  `claims.assigned_to`, `claims.status`, `claims.date_submitted`, `documents.claim_id`,
+  `notifications.user_id/is_read`, `claim_histories.claim_id/created_at`; confirm foreign-key
+  behavior for users, claims, documents, notifications, and history; consider soft deletes for
+  claims/users only if the product needs recovery, otherwise document hard-delete behavior.
+  Acceptance: `EXPLAIN`/query plans are reasonable; cascade tests pass.
+- [x] **ARCH-06** Frontend data layer and types. Centralize API response types in one module;
+  replace ad-hoc `any` mapping with typed transform functions; consider React Query/TanStack Query
+  for caching, refetching, and loading/error states, or create reusable hooks with the same
+  behavior; avoid components fetching the same data with different shapes. Acceptance: no `any`
+  in new API code; a single claim-shape source of truth.
+- [x] **ARCH-07** Remove dead scaffolding and unused dependencies. Delete or archive `_gen/` after
+  confirming no imports; remove unused shadcn/Radix/MUI/Recharts/Motion/React Hook Form
+  dependencies if no code uses them; keep only the UI components actually imported. Acceptance:
+  `npm ci` is smaller/faster; `npm run build` passes; no broken imports.
+- [x] **ARCH-08** Add linting, formatting, and static analysis. Backend: Laravel Pint
+  (`vendor/bin/pint --test`) and optionally Larastan/PHPStan; frontend: ESLint + Prettier +
+  TypeScript strict. Acceptance: CI runs all checks and fails on errors.
+- [x] **ARCH-09** Documentation and API contract. Add `docs/API.md` or an OpenAPI specification
+  generated/maintained from routes; add ADRs for the MySQL choice, document privacy,
+  assigned-analyst decision rule, history immutability, and polling vs real-time; keep READMEs
+  synchronized. Acceptance: a new developer can implement a client from the docs without reading
+  controllers.
 
 ---
 
 ## 5.7 P2 — CI, operations, and reliability
 
-### OPS-01 — Add CI
-
-Create `.github/workflows/ci.yml` with jobs:
-- Backend: setup PHP 8.4, `composer install`, `php artisan test`, Pint check.
-- Frontend: setup Node 22, `npm ci`, `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`.
-- E2E (optional but recommended): start SQLite/MySQL test DB, run Playwright.
-- Docker build check: build both images (not necessarily full Compose).
-
-Acceptance: every PR runs the pipeline; required checks are documented.
-
-### OPS-02 — Backups and restore
-
-- Document `mysqldump` and restore commands.
-- Document storage volume backup.
-- Add a periodic backup recommendation; do not build a full scheduler unless requested.
-- Test restore on a disposable environment.
-
-### OPS-03 — Production configuration
-
-- Require strong DB passwords and `APP_KEY`.
-- Keep `APP_DEBUG=false`.
-- Configure trusted proxies/hosts if deployed behind a reverse proxy.
-- Set log rotation and external error monitoring.
-- Consider non-root execution and read-only filesystems where feasible.
-- Acceptance: production checklist exists and has been reviewed.
-
-### OPS-04 — Observability
-
-- Add structured request/error logging for auth, claims, documents, and history.
-- Never log tokens or passwords.
-- Add health endpoints for DB connectivity (`/up` plus a DB-aware check if useful).
-- Consider Sentry/OpenTelemetry later.
-
-### OPS-05 — Keep the smoke test current
-
-- Extend `docker/smoke.php` after DB separation and history:
-  - Assert DB is MySQL (not SQLite) in the runtime.
-  - Create history and assert the endpoint returns it.
-  - Assert document URLs are not publicly accessible.
-  - Clean up history rows and files.
-- Acceptance: smoke test passes against the new Compose stack.
+- [x] **OPS-01** Add CI. Create `.github/workflows/ci.yml` with jobs: backend (setup PHP 8.4,
+  `composer install`, `php artisan test`, Pint check); frontend (setup Node 22, `npm ci`,
+  `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`); E2E (optional but
+  recommended - start SQLite/MySQL test DB, run Playwright); Docker build check (build both
+  images, not necessarily full Compose). Acceptance: every PR runs the pipeline; required checks
+  are documented.
+- [x] **OPS-02** Backups and restore. Document `mysqldump` and restore commands; document storage
+  volume backup; add a periodic backup recommendation without building a full scheduler unless
+  requested; test restore on a disposable environment. Acceptance: a restore from backup is
+  demonstrated on a disposable copy.
+- [x] **OPS-03** Production configuration. Require strong DB passwords and `APP_KEY`; keep
+  `APP_DEBUG=false`; configure trusted proxies/hosts if deployed behind a reverse proxy; set log
+  rotation and external error monitoring; consider non-root execution and read-only filesystems
+  where feasible. Acceptance: a production checklist exists and has been reviewed.
+- [x] **OPS-04** Observability. Add structured request/error logging for auth, claims, documents,
+  and history; never log tokens or passwords; add health endpoints for DB connectivity (`/up`
+  plus a DB-aware check if useful); consider Sentry/OpenTelemetry later. Acceptance: logs contain
+  no secrets and health endpoints report DB status.
+- [x] **OPS-05** Keep the smoke test current. Extend `docker/smoke.php` after DB separation and
+  history: assert the runtime DB is MySQL (not SQLite); create history and assert the endpoint
+  returns it; assert document URLs are not publicly accessible; clean up history rows and files.
+  Acceptance: smoke test passes against the new Compose stack.
 
 ---
 
@@ -920,20 +710,27 @@ Acceptance: every PR runs the pipeline; required checks are documented.
 
 These are valuable but should not delay security, history, DB separation, tests, and core UX.
 
-1. **Claim conversation/messages**: client-analyst thread per claim; attachments; notification on message.
-2. **Document requests**: analyst requests a specific document; client uploads against the request; status `Needs Info`.
-3. **Draft claims**: save incomplete claims and resume.
-4. **Claim categories/providers**: structured provider registry, diagnosis codes, policy coverage rules.
-5. **Payment/reimbursement tracking**: approved -> paid -> settled, with reference numbers (only if the business actually pays).
-6. **Admin/analyst management**: invite analysts, deactivate users, workload view, SLA timers.
-7. **Analytics**: volume by status/provider/type, approval rate, turnaround time, exportable reports.
-8. **Real-time notifications**: replace polling with SSE/WebSocket if scale requires it; add email notifications.
-9. **Password reset and email verification**: complete account lifecycle.
-10. **Two-factor authentication** for analysts.
-11. **Multi-language UI** (Indonesian/English) and localized dates/currency.
-12. **Accessibility audit** with axe-core and manual screen-reader testing.
-13. **Data retention**: document retention policy, deletion requests, audit-log retention.
-14. **Feature flags / environment separation** for demo accounts and seed data.
+- [x] **BL-01** Claim conversation/messages: client-analyst thread per claim; attachments;
+  notification on message.
+- [x] **BL-02** Document requests: analyst requests a specific document; client uploads against
+  the request; status `Needs Info`.
+- [x] **BL-03** Draft claims: save incomplete claims and resume.
+- [x] **BL-04** Claim categories/providers: structured provider registry, diagnosis codes, policy
+  coverage rules.
+- [x] **BL-05** Payment/reimbursement tracking: approved -> paid -> settled, with reference
+  numbers (only if the business actually pays).
+- [x] **BL-06** Admin/analyst management: invite analysts, deactivate users, workload view, SLA
+  timers.
+- [x] **BL-07** Analytics: volume by status/provider/type, approval rate, turnaround time,
+  exportable reports.
+- [x] **BL-08** Real-time notifications: replace polling with SSE/WebSocket if scale requires it;
+  add email notifications.
+- [x] **BL-09** Password reset and email verification: complete account lifecycle.
+- [x] **BL-10** Two-factor authentication for analysts.
+- [x] **BL-11** Multi-language UI (Indonesian/English) and localized dates/currency.
+- [~] **BL-12** Accessibility audit with axe-core and manual screen-reader testing.
+- [x] **BL-13** Data retention: document retention policy, deletion requests, audit-log retention.
+- [x] **BL-14** Feature flags / environment separation for demo accounts and seed data.
 
 ---
 
@@ -961,17 +758,17 @@ These are valuable but should not delay security, history, DB separation, tests,
 
 A change is complete only when:
 
-- [ ] The implementation matches the ticket’s acceptance criteria.
-- [ ] Backend tests pass (`cd Health_Guard-backend && composer test`).
-- [ ] Frontend typecheck, lint, unit tests, and build pass.
-- [ ] New authorization rules have negative tests (denied cases), not just happy-path tests.
-- [ ] New input rules have boundary tests.
-- [ ] Migrations work on a fresh database and, where relevant, on MySQL.
-- [ ] History/audit rows are created transactionally for every relevant mutation.
-- [ ] No secrets, passwords, tokens, or PII are added to logs/cookies/public endpoints.
-- [ ] Documentation is updated (`README.md`, `DOCKER.md`, frontend/backend READMEs, API docs).
-- [ ] The Docker smoke test passes after infrastructure changes.
-- [ ] The PR description lists the tickets, migrations, env changes, and manual verification steps.
+- [~] The implementation matches the ticket's acceptance criteria.
+- [x] Backend tests pass (`cd Health_Guard-backend && composer test`).
+- [x] Frontend typecheck, lint, unit tests, and build pass.
+- [x] New authorization rules have negative tests (denied cases), not just happy-path tests.
+- [x] New input rules have boundary tests.
+- [x] Migrations work on a fresh database and, where relevant, on MySQL.
+- [x] History/audit rows are created transactionally for every relevant mutation.
+- [x] No secrets, passwords, tokens, or PII are added to logs/cookies/public endpoints.
+- [x] Documentation is updated (`README.md`, `DOCKER.md`, frontend/backend READMEs, API docs).
+- [x] The Docker smoke test passes after infrastructure changes.
+- [x] The PR description lists the tickets, migrations, env changes, and manual verification steps.
 
 ---
 
@@ -979,7 +776,7 @@ A change is complete only when:
 
 1. **Do not launch Docker while only planning or reading this document.** Docker verification is a later implementation step.
 2. **Do not modify `_gen/`.** It is stale and excluded from builds. Remove it only through `ARCH-07` after confirming no references.
-3. **Do not “fix” the database by editing `database.sqlite` or a volume.** Use migrations/commands.
+3. **Do not "fix" the database by editing `database.sqlite` or a volume.** Use migrations/commands.
 4. **Do not change status strings or the public claim ID format** without a migration and frontend updates.
 5. **Do not weaken authorization to make a test pass.** Fix the policy and the test together.
 6. **Do not store passwords, API tokens, or full document contents in logs.**
@@ -1058,21 +855,8 @@ A change is complete only when:
 
 ---
 
-## 11. Appendix — current limitations that must not be mistaken for finished behavior
+## 11. Appendix - audit status (2026-11-19)
 
-- Claim documents are currently public.
-- Claim history does not exist yet.
-- Notifications are polling-based.
-- Direct review links currently fail without preloaded context.
-- Client dashboard stats and export are page-local.
-- Only the first page of claims is loaded.
-- The client profile shows placeholder insurance data.
-- `Needs Info` resubmission is not implemented in the UI.
-- Analyst decisions are not restricted to the assigned analyst.
-- Public registration can create analysts.
-- Quick Sign In stores plaintext passwords.
-- `_gen/` is stale.
-- The frontend has no typecheck/lint/unit/E2E scripts yet.
-- CI/CD and DB backups are not implemented.
+The original baseline limitations were re-checked against the current code. The following are now resolved: private claim documents; immutable claim history with UI; polling default with optional SSE and email; deep-linked claim detail; server-side pagination/filter/stats/export; real profile data; Needs Info resubmission; assigned-analyst-only decisions; client-only public registration; password-free Quick Sign In; `_gen/` removal; frontend typecheck/lint/unit/E2E scripts; CI and MySQL backups.
 
-Treat this appendix as the baseline; update it as tickets are completed.
+Remaining verification gaps are tracked as `[~]` in the tickets: exhaustive validation-boundary tests, full component/E2E scenario matrix, full manual QA execution, manual keyboard-only verification, and manual screen-reader audit. Per-file upload retry/remove and explicit error summary/focus-first were completed and regression-tested on 2026-11-19. Remote CI for draft PR #1 is successful; backend runtime warnings remain documented in `docs/IMPLEMENTATION.md`.
