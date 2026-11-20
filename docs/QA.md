@@ -26,3 +26,35 @@ Automated axe checks are included for login and mobile claims list. Manual audit
 - Reduced motion and visible focus; status must be readable without color.
 
 Do not label manual screen-reader testing as completed merely because axe passes. See IMPLEMENTATION.md for actual execution results and remaining environment checks.
+
+## Execution record — 19 November 2026
+
+| Check | Result | Evidence / next requirement |
+|---|---|---|
+| Frontend typecheck, lint, build | Passed | Local Node 26; CI targets Node 22 |
+| Component/authentication tests | Passed | Latest local run: 29 Vitest tests, including 401 handling, route access, notifications, status/history, file retry/removal and invalid-field focus |
+| Cookie security | Passed | 5 Node tests |
+| Backend boundary matrix | Passed | Latest PR revision: SQLite 164 passed / 2 database-specific skips, 847 assertions; MySQL 165 passed / 1 database-specific skip, 862 assertions. Pint passes; prior file_get_contents warnings resolved |
+| Full E2E matrix | Partially verified | PR #1 CI passed the two existing Playwright scenarios; remaining TEST-04 scenarios still need coverage |
+| Manual client/analyst QA | Not executed | Run core scenarios above on disposable data |
+| Keyboard-only happy paths | Not executed | Complete both roles without pointer input |
+| NVDA/VoiceOver | Not executed | Record reader/version, browser, route and announcements |
+| Remote CI | New revision partially verified | [PR #1 run 44481972881](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/actions/runs/44481972881), commit `151ca213f30a568071e19a2916339ddc89b8742d`; backend and frontend passed, E2E/Docker pending |
+
+The 12-file follow-up and fixture/selector corrections were published with permission. The first
+expanded run exposed a success-toast color contrast failure (4.25:1). Its App.tsx correction
+is ready locally, passes typecheck/lint/29 tests/build, and awaits separate publication permission.
+See [TEST-COVERAGE.md](TEST-COVERAGE.md) for the full mapping and pending manual audit record.
+
+Before merge, require these CI checks on the proposed commit: `backend (sqlite)`,
+`backend (mysql)`, `frontend`, `e2e`, and `docker`. This documents the merge criteria;
+repository branch-protection settings were not changed. TEST-02 is now complete. A green
+pipeline does not replace manual accessibility checks; TEST-04 still requires a passing
+expanded browser suite.
+
+Upload recovery regression: select three distinct PDFs, remove one before confirmation, verify
+the remaining filenames, interrupt an upload, then retry its individual button. Confirm the claim
+ID stays the same and previously confirmed uploads are not sent again. Navigate away while an
+upload remains incomplete and verify the unsaved-changes dialog. Submit an empty required field
+and verify the summary, inline error and focus. Automated checks cover removal, filenames,
+focus, and selective retry; the complete browser/manual flow still needs execution.

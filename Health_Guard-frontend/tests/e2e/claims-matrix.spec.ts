@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.use({ actionTimeout: 15000 });
+
 const password = "E2E-only-password-2026";
 async function signIn(page: Page, email: string) {
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -78,8 +80,9 @@ test("registration, document, rejection, resubmission, partial approval and priv
     await expect(analyst).toHaveURL(/\/claims\?scope=unassigned$/);
     await analyst.getByRole("link", { name: id, exact: true }).click();
     await analyst.getByRole("button", { name: "Ambil tugas" }).click();
+    await expect(analyst.getByRole("heading", { name: "Keputusan analis" })).toBeVisible();
     await analyst
-      .getByLabel("Status", { exact: true })
+      .getByRole("combobox", { name: /^Status/ })
       .selectOption("Rejected");
     await analyst.getByRole("button", { name: "Tinjau keputusan" }).click();
     await expect(analyst.getByRole("dialog")).toHaveCount(0);
@@ -99,7 +102,7 @@ test("registration, document, rejection, resubmission, partial approval and priv
     await expect(page.getByText("resubmitted", { exact: true })).toBeVisible();
     await analyst.reload();
     await analyst
-      .getByLabel("Status", { exact: true })
+      .getByRole("combobox", { name: /^Status/ })
       .selectOption("Partially Approved");
     await analyst.getByRole("button", { name: "Tinjau keputusan" }).click();
     await expect(analyst.getByRole("dialog")).toHaveCount(0);
