@@ -351,6 +351,9 @@ legend {
   padding: 1rem;
   overflow: auto;
 }
+.modal:not([open]) {
+  display: none;
+}
 .modal > .panel {
   width: 100%;
   max-width: 600px;

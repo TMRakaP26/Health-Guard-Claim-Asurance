@@ -454,6 +454,7 @@ export function ClaimDetail() {
               ))}
               {messages.data && (
                 <Pager
+                  label={t("Halaman percakapan", "Conversation pages")}
                   page={messagePage}
                   last={messages.data.last_page}
                   onChange={setMessagePage}
@@ -613,6 +614,7 @@ export function ClaimDetail() {
             </ol>
             {history.data && (
               <Pager
+                label={t("Halaman histori klaim", "Claim history pages")}
                 page={historyPage}
                 last={history.data.meta?.last_page || 1}
                 onChange={setHistoryPage}

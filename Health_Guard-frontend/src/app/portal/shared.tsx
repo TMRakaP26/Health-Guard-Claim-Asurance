@@ -114,13 +114,15 @@ export function Pager({
   page,
   last,
   onChange,
+  label = "Pagination",
 }: {
   page: number;
   last: number;
   onChange: (p: number) => void;
+  label?: string;
 }) {
   return (
-    <nav className="pager" aria-label="Pagination">
+    <nav className="pager" aria-label={label}>
       <button disabled={page <= 1} onClick={() => onChange(page - 1)}>
         ←
       </button>
