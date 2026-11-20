@@ -1,6 +1,12 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+async function expectNoPageOverflow(page: Page) {
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+  ).toBeTruthy();
+}
+
 async function tabTo(page: Page, target: Locator) {
   await expect(target).toBeVisible();
   for (let attempt = 0; attempt < 80; attempt++) {
@@ -47,6 +53,7 @@ test("keyboard client submission and analyst decision with native dialog focus",
   await page.goto("/");
   await login(page, "client");
   await expect(page).toHaveURL(/\/claims$/);
+  await expectNoPageOverflow(page);
   await activate(
     page,
     page.getByRole("link", { name: "Ajukan klaim", exact: true }).first(),
@@ -79,6 +86,7 @@ test("keyboard client submission and analyst decision with native dialog focus",
   await expect(
     page.getByRole("heading", { name: "Histori klaim" }),
   ).toBeVisible();
+  await expectNoPageOverflow(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   const context = await browser.newContext({
     viewport: { width: 768, height: 1024 },
@@ -88,6 +96,7 @@ test("keyboard client submission and analyst decision with native dialog focus",
     await analyst.goto(url);
     await login(analyst, "analyst");
     await expect(analyst).toHaveURL(url);
+    await expectNoPageOverflow(analyst);
     await activate(
       analyst,
       analyst.getByRole("button", { name: "Ambil tugas" }),
