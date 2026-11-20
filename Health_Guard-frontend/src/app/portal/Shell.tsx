@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Dialog } from "./Dialog";
 import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../state/AuthContext";
 import { useLocale } from "./locale";
@@ -12,6 +13,7 @@ export function Shell() {
   const action = useAction();
   const catalog = useQuery<Catalog>(user ? "/catalog" : null);
   const [count, setCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -75,21 +77,8 @@ export function Shell() {
         replace
       />
     );
-  return (
-    <div className="app-shell">
-      <a className="skip" href="#main">
-        {t("Langsung ke konten", "Skip to content")}
-      </a>
-      <aside className="sidebar">
-        <Link className="brand" to="/claims">
-          ✚ HealthGuard
-        </Link>
-        <p>
-          {user.name}
-          <br />
-          <small>{user.role}</small>
-        </p>
-        <nav>
+  const navigation = (
+        <nav aria-label={t("Navigasi utama", "Main navigation")}>
           <Link to="/claims">{t("Daftar klaim", "Claims")}</Link>
           {user.role === "client" && (
             <>
@@ -122,6 +111,30 @@ export function Shell() {
           </Link>
           <Link to="/guide">{t("Panduan", "Guide")}</Link>
         </nav>
+  );
+  return (
+    <div className="app-shell">
+      <a className="skip" href="#main">
+        {t("Langsung ke konten", "Skip to content")}
+      </a>
+      <aside className="sidebar">
+        <Link className="brand" to="/claims">
+          ✚ HealthGuard
+        </Link>
+        <button
+          className="mobile-menu-toggle"
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(true)}
+        >
+          {t("Buka menu", "Open menu")}
+        </button>
+        <p>
+          {user.name}
+          <br />
+          <small>{user.role}</small>
+        </p>
+        <div className="desktop-navigation">{navigation}</div>
         <label className="field">
           <span>{t("Bahasa", "Language")}</span>
           <select
@@ -137,6 +150,16 @@ export function Shell() {
         </button>
         <Feedback error={action.error} />
       </aside>
+      {menuOpen && (
+        <Dialog label={t("Menu navigasi", "Navigation menu")} onClose={() => setMenuOpen(false)}>
+          <div className="panel mobile-navigation">
+            <button onClick={() => setMenuOpen(false)}>{t("Tutup menu", "Close menu")}</button>
+            <div onClick={(event) => {
+              if ((event.target as HTMLElement).closest("a")) setMenuOpen(false);
+            }}>{navigation}</div>
+          </div>
+        </Dialog>
+      )}
       <main id="main" className="main">
         <Outlet />
       </main>

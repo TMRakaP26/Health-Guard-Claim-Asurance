@@ -16,7 +16,29 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 | P3-8–11 | Polling default + optional SSE/email, reset/verifikasi, staff TOTP/recovery, UI ID/EN/localized currency/dates. |
 | P3-12–14 | Native dialogs/axe automation/manual audit guide, retention policy/deletion request/purge dry run, feature flags/demo environment guards. |
 
-## Bukti lokal
+## Bukti lokal dan CI
+
+### Pembaruan 20 November 2026
+
+- PR #1 sudah di-merge pada 19 November; perubahan berikutnya tersedia di
+  [draft PR #2](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/pull/2).
+  Branch diselaraskan dengan main `7fa51b57815b37226a0537603eb48a2db8683498`, yang sudah
+  berisi pembaruan dokumentasi dan warna toast. Agen tidak melakukan merge ke main.
+- Timeout matriks browser ditelusuri dari trace ke selector status. Selector combobox dan
+  penantian panel keputusan diperbaiki; batas waktu aksi memperjelas kegagalan berikutnya.
+  Run 44690871329 membuktikan tiga skenario browser lulus, termasuk seluruh matriks klaim.
+- Tes keyboard menemukan landmark pagination duplikat dan fokus tidak kembali setelah Escape.
+  Pagination percakapan/histori kini berlabel berbeda. Dialog yang belum terbuka tetap tersembunyi;
+  lifecycle dialog menyimpan dan mengembalikan fokus ke pemicunya.
+- Reproduksi layout di Edge lokal: viewport 360/390 px sebelumnya menghasilkan dokumen selebar
+  750 px. Setelah koreksi minimum grid dan pembungkusan teks, dokumen sesuai 360/390/768/1440 px.
+  Tes browser kini memeriksa overflow dan pratinjau dokumen, selain alur client/analis.
+  File chooser dibuka dengan keyboard; byte fixture dimasukkan melalui API Playwright sebagai
+  pengganti interaksi dialog OS. Ini bukan klaim pengujian manual native file picker.
+- Typecheck, lint, 29 Vitest tests dan production build lokal lulus. Commit
+  `d7824e3048f81df6cb0162f16d8f0533f0a0575b` sedang diverifikasi pada run 44691545596.
+- Docker Linux engine lokal tetap tidak merespons; PHP/Composer lokal tidak tersedia.
+  QA manual lengkap dan audit NVDA/VoiceOver belum dilakukan.
 
 ### Pembaruan 19 November 2026
 
@@ -102,7 +124,7 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Verifikasi yang belum boleh dianggap selesai
 
-1. Menuntaskan TEST-04 dengan seluruh tes browser lulus, termasuk koreksi kontras toast. TEST-02 selesai pada SQLite/MySQL dan warning `file_get_contents` sudah hilang. Koreksi `App.tsx` tersedia lokal tetapi belum diunggah, menunggu izin publikasi file tambahan.
+1. Menuntaskan TEST-04 dengan seluruh tes browser lulus, termasuk koreksi layout/fokus/landmark. TEST-02 selesai pada SQLite/MySQL dan warning `file_get_contents` sudah hilang. Koreksi kontras sudah dipublikasikan.
 2. Manual screen-reader audit NVDA/VoiceOver dan penerimaan desain bisnis.
 3. SMTP eksternal, kebijakan retensi/durasi, data provider/polis nyata, serta pencatatan pembayaran operasional perlu konfigurasi pengelola. Fitur tersedia tetapi default email/retention nonaktif.
 4. Benchmark dan penilaian query pada volume data produksi. Uji contention InnoDB dasar dan ketersediaan indeks sudah lulus, tetapi tidak membuktikan kapasitas produksi.

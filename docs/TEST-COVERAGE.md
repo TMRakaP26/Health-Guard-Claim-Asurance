@@ -1,4 +1,4 @@
-# Remaining ticket coverage — 19 November 2026
+# Remaining ticket coverage — 20 November 2026
 
 This map links the original IMPROVEMENT.md criteria to the current portal implementation.
 The old ProtectedRoute, ClaimContext and NotificationBell components have been replaced by
@@ -48,7 +48,7 @@ Tests exercise the replacements rather than adding tests for removed components.
 The expanded suite was published with permission. Run 44481298732 exposed an email fixture
 and a browser datalist selector mismatch; corrections are in commit 151ca213f30a568071e19a2916339ddc89b8742d.
 The keyboard test also detected a real success-toast contrast failure (4.25:1 versus 4.5:1).
-App.tsx has a local color correction awaiting publication permission.
+The color correction is published. PR #1 was merged; draft PR #2 contains the follow-up fixes.
 TEST-02 passed on both databases in run 44481972881 at commit 151ca213f30a568071e19a2916339ddc89b8742d:
 SQLite 164 passed / 2 database-specific skips (847 assertions), MySQL 165 passed / 1
 database-specific skip (862 assertions). Pint passed, and the earlier file_get_contents warnings
@@ -57,9 +57,11 @@ are gone. TEST-04 remains open until the browser suite passes.
 ## TEST-05, UX-10, BL-12: manual verification
 
 keyboard.spec.ts provides automated keyboard-only client submission and analyst approval,
-native dialog focus containment, Escape and focus restoration, 360/768 px checks, reduced-motion
+native dialog focus containment, Escape and focus restoration, 360/390/768/1440 px checks, reduced-motion
 preference, and axe on claim detail/decision dialog. It uses Tab/Enter/Space and keyboard text
 entry for UI actions; browser navigation/reload and fixture login are explicit test setup.
+It opens the file chooser with Enter and supplies fixture bytes through Playwright, then opens
+and closes the uploaded image preview by keyboard. The native OS picker is not manually tested.
 This is automated evidence, not a manual NVDA/VoiceOver audit.
 
 Record the following before closing the manual tickets in docs/QA.md:

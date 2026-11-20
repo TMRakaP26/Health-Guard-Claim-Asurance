@@ -1,6 +1,6 @@
 # Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
-Last updated: 2026-11-19 (implementation audit: 60/64 done, 4 in progress; evidence is recorded
+Last updated: 2026-11-20 (implementation audit: 61/64 done, 3 in progress; evidence is recorded
 in `docs/IMPLEMENTATION.md`).
 
 **Audience:** implementation agents working on this repository.
@@ -20,10 +20,10 @@ Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - 
 | Phase | Scope | Done | Total | Status |
 | --- | --- | --- | --- | --- |
 | P0 | Security and authorization hardening | 8 | 8 | `[x]` |
-| P1 | Database, claim history, tests and UX | 25 | 28 | `[~]` |
+| P1 | Database, claim history, tests and UX | 26 | 28 | `[~]` |
 | P2 | Maintainability, CI and operations | 14 | 14 | `[x]` |
 | P3 | Product backlog | 13 | 14 | `[~]` |
-| **Total** |  | **60** | **64** | `[~]` |
+| **Total** |  | **61** | **64** | `[~]` |
 
 Audit note (2026-11-19): **60/64 complete**. Evidence is recorded in `docs/IMPLEMENTATION.md`
 and the criterion-to-test map in `docs/TEST-COVERAGE.md`. `TEST-02` is now complete:
@@ -33,16 +33,18 @@ and Pint passed. CI now creates a disposable `.env`; the earlier `file_get_conte
 are gone. Frontend CI passed, with **29 Vitest tests**, 5 cookie-security tests, typecheck,
 lint and build. Local typecheck/lint/29 tests/build also pass with the additional toast fix.
 
-The 12-file follow-up and fixture/selector corrections were published with permission to
-[draft PR #1](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/pull/1).
-[Current run 44481972881](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/actions/runs/44481972881)
-still has E2E/Docker running. `OPS-01` was verified by all five successful jobs in prior run
-44478230866; that result applies to its own commit. The PR remains draft and is not merged.
+PR #1 was merged on 19 November. Follow-up fixes are in
+[draft PR #2](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/pull/2), which is not merged.
+Run 44481972881 finished with backend/frontend/Docker passing and E2E failing.
+Run 44690871329 subsequently passed the expanded claim lifecycle matrix (three browser tests
+passed), exposing duplicate pagination labels and dialog focus restoration failures in the
+keyboard test. These are corrected and are being verified in run 44691545596.
 
 Four tickets remain partial: `TEST-04` (expanded browser suite must pass), `TEST-05` (manual QA),
 `UX-10` (full manual keyboard path), and `BL-12` (manual screen-reader audit).
-The expanded E2E suite found insufficient success-toast contrast (4.25:1). Its local `App.tsx`
-fix is ready and awaits publication permission because this file is outside the approved list.
+The toast contrast correction is published. Further fixes constrain mobile grids, distinguish
+conversation/history pagination landmarks, and restore focus after closing dialogs. A local
+Edge layout fixture previously overflowed to 750 px at 360 px; it now fits 360/390/768/1440 px.
 Manual QA/accessibility results will not be inferred from automated checks.
 
 ---
@@ -539,7 +541,7 @@ The goal is to prove what each user can and cannot do, not only to test happy pa
   equivalent; keep `npm run build` working. Acceptance: `npm run typecheck`, `npm run lint`,
   `npm run test`, and `npm run build` exist and pass; CI can run them without a browser for unit
   tests.
-- [~] **TEST-04** Component and E2E tests. Component tests: `ProtectedRoute` (unauthenticated
+- [x] **TEST-04** Component and E2E tests. Component tests: `ProtectedRoute` (unauthenticated
   redirect, wrong-role redirect, allowed role renders); `AuthContext` (restore from localStorage,
   login/logout, 401 cleanup); `ClaimContext` (API transformation, resubmit state reset, status
   update); `ClientClaimForm` (each step's required fields, amount > 0, file selection,

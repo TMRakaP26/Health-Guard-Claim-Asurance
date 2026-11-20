@@ -121,6 +121,7 @@ dd {
   min-height: 100vh;
 }
 .sidebar {
+  min-width: 0;
   background: #123e34;
   color: #f4faf7;
   padding: 2rem 1.3rem;
@@ -142,7 +143,19 @@ dd {
 .sidebar small {
   color: #c1dbd1;
 }
+.mobile-menu-toggle {
+  display: none;
+}
+.mobile-navigation nav {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.mobile-navigation nav a {
+  padding: 0.65rem;
+}
 .main {
+  min-width: 0;
   padding: 2.5rem;
   max-width: 1500px;
   width: 100%;
@@ -256,10 +269,11 @@ td {
 }
 .detail-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.3rem;
 }
 .detail-grid .panel {
+  min-width: 0;
   margin-bottom: 0;
 }
 dl {
@@ -276,6 +290,7 @@ dt {
 dd {
   margin: 0;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 blockquote {
   border-left: 3px solid #d9a34c;
@@ -346,6 +361,9 @@ legend {
   justify-content: center;
   padding: 1rem;
   overflow: auto;
+}
+.modal:not([open]) {
+  display: none;
 }
 .modal > .panel {
   width: 100%;
@@ -449,10 +467,17 @@ progress {
 }
 @media (max-width: 850px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
     padding: 1rem;
+  }
+  .desktop-navigation {
+    display: none;
+  }
+  .mobile-menu-toggle {
+    display: inline-flex;
+    margin: 0.5rem;
   }
   .sidebar nav {
     display: flex;
@@ -476,7 +501,7 @@ progress {
     grid-template-columns: 1fr;
   }
   .detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
   .auth-layout {
@@ -496,7 +521,7 @@ progress {
     padding: 1rem;
   }
   dl {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .modal > .panel {
     max-height: 90vh;
