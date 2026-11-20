@@ -54,10 +54,17 @@ test("keyboard client submission and analyst decision with native dialog focus",
   await login(page, "client");
   await expect(page).toHaveURL(/\/claims$/);
   await expectNoPageOverflow(page);
+  const menuButton = page.getByRole("button", { name: "Buka menu" });
+  await activate(page, menuButton);
+  await expect(page.getByRole("dialog", { name: "Menu navigasi" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menuButton).toBeFocused();
+  await activate(page, menuButton);
   await activate(
     page,
-    page.getByRole("link", { name: "Ajukan klaim", exact: true }).first(),
+    page.getByRole("dialog").getByRole("link", { name: "Ajukan klaim", exact: true }),
   );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await enter(page, page.getByLabel("Nama pasien"), "Keyboard patient");
   await activate(
     page,

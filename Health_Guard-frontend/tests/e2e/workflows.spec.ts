@@ -102,6 +102,7 @@ test("accessibility, responsive navigation, draft resume and locale", async ({
   await expect(
     page.getByText("Draf disimpan.", { exact: false }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Buka menu" }).click();
   await page.getByRole("link", { name: "Draf tersimpan" }).click();
   await page.getByRole("link", { name: "Saved patient" }).click();
   await expect(page.getByLabel("Nama pasien")).toHaveValue("Saved patient");

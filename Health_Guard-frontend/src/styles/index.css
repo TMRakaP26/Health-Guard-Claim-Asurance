@@ -143,6 +143,17 @@ dd {
 .sidebar small {
   color: #c1dbd1;
 }
+.mobile-menu-toggle {
+  display: none;
+}
+.mobile-navigation nav {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.mobile-navigation nav a {
+  padding: 0.65rem;
+}
 .main {
   min-width: 0;
   padding: 2.5rem;
@@ -460,6 +471,13 @@ progress {
   }
   .sidebar {
     padding: 1rem;
+  }
+  .desktop-navigation {
+    display: none;
+  }
+  .mobile-menu-toggle {
+    display: inline-flex;
+    margin: 0.5rem;
   }
   .sidebar nav {
     display: flex;
