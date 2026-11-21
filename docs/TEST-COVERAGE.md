@@ -47,9 +47,10 @@ Tests exercise the replacements rather than adding tests for removed components.
 | E2E 8: another client's data | claims-matrix.spec.ts checks claim/history/document API denial and UI denial |
 | Cleanup | server.mjs puts DB and storage in the same disposable temporary directory; test teardown stops servers and removes it |
 
-TEST-04 has local passing evidence on 21 November: all four existing Playwright tests passed
-on Chrome with disposable SQLite/storage. The additional upload-recovery test and step-focus
-assertions are being verified as a five-test suite; see IMPLEMENTATION.md for the final result.
+TEST-04 has local passing evidence on 21 November: all five Playwright tests passed in 3.3 minutes
+on Chrome 157.0.8103.79 with disposable SQLite/storage, including upload recovery and step-focus
+assertions. Tested code revision: 3e85bab617625fc1cd521e71e604f87764e4f39b;
+subsequent edits only update documentation. See IMPLEMENTATION.md for the execution record.
 Typecheck/lint/build and 30 Vitest tests pass; 5 cookie-security tests also pass.
 Backend SQLite was rerun locally: 164 passed / 2 database-specific skips (847 assertions),
 with Pint passing. The MySQL evidence remains run 44481972881 at commit

@@ -36,7 +36,7 @@ Do not label manual screen-reader testing as completed merely because axe passes
 | Component/authentication tests | Passed | 30 Vitest tests, including next/back step focus and Tab to first input |
 | Cookie security | Passed | 5 Node tests |
 | Backend SQLite | Passed | PHP 8.3.30: 164 passed / 2 database-specific skips, 847 assertions; Pint passed |
-| Full E2E matrix | Existing four tests passed | Chrome with disposable SQLite/storage; five-test suite including upload recovery is being verified |
+| Full E2E matrix | Passed | 5 tests, 3.3 minutes, exit 0; Chrome 157.0.8103.79 with disposable SQLite/storage; includes keyboard step focus and upload recovery |
 | MySQL / Docker | Not rerun | Historical evidence is retained in IMPLEMENTATION.md |
 | Manual client/analyst QA | Not executed | Run core scenarios above on disposable data |
 | Keyboard-only happy paths | Not executed | Complete both roles without pointer input |
@@ -44,6 +44,8 @@ Do not label manual screen-reader testing as completed merely because axe passes
 | Remote CI | Not rechecked | Local results do not establish the status of the latest remote commit |
 
 The 19–20 November PR/CI execution history is preserved in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+Browser-tested code revision: `3e85bab617625fc1cd521e71e604f87764e4f39b`; subsequent changes are
+documentation only. Local report: `Health_Guard-frontend/playwright-report/index.html` (Git-ignored).
 See [TEST-COVERAGE.md](TEST-COVERAGE.md) for criterion-to-test mapping. The previous claim that
 TEST-04 still lacked a passing expanded browser matrix is superseded by the local results above.
 

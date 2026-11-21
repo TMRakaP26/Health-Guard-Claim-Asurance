@@ -25,7 +25,7 @@ Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - 
 | P3 | Product backlog | 13 | 14 | `[~]` |
 | **Total** |  | **61** | **64** | `[~]` |
 
-Audit note (2026-11-21): **61/64 complete**. The four existing browser tests now pass locally
+Audit note (2026-11-21): **61/64 complete**. All five browser tests now pass locally
 on Chrome against disposable SQLite/storage, including the claim lifecycle matrix, keyboard
 client/analyst paths, native dialogs, mobile navigation, axe, drafts and locale. This supplies
 the previously missing local evidence for `TEST-04`; it does not establish current remote CI status.
@@ -34,9 +34,10 @@ Frontend typecheck/lint/build, 30 Vitest tests and 5 cookie-security tests pass 
 MySQL/Compose results remain historical; they were not rerun on 21 November.
 
 Form step changes now focus a localized step heading; the next Tab reaches the first input.
-A new browser regression exercises interrupted uploads, per-file retry, navigation protection,
-and absence of duplicate claims/documents. Final expanded-suite results are recorded in
-`docs/IMPLEMENTATION.md` and `docs/QA.md` after execution.
+A passing browser regression exercises interrupted uploads, per-file retry, navigation protection,
+and absence of duplicate claims/documents. The complete suite passed in 3.3 minutes on code
+revision `3e85bab617625fc1cd521e71e604f87764e4f39b`; evidence is recorded in
+`docs/IMPLEMENTATION.md` and `docs/QA.md`.
 
 Three tickets remain partial: `TEST-05` (full manual QA), `UX-10` (full manual keyboard/visual
 verification), and `BL-12` (manual screen-reader audit). Automated results do not close these

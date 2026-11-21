@@ -40,8 +40,11 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
   sama, satu pembuatan klaim, dan tidak ada duplikasi dokumen/histori setelah reload.
   Percobaan pertama membuktikan retry/dokumen berhasil tetapi selector histori tes memakai
   nama event mentah `document_uploaded`, sedangkan UI merender `document uploaded`.
-  Selector dikoreksi; suite lima tes sedang diverifikasi pada revisi kode
-  `3e85bab617625fc1cd521e71e604f87764e4f39b`.
+  Selector dikoreksi; **seluruh 5 tes lulus (3,3 menit, exit 0)** pada revisi kode
+  `3e85bab617625fc1cd521e71e604f87764e4f39b`, melalui
+  `$env:PLAYWRIGHT_CHANNEL='chrome'; npm.cmd run test:e2e`.
+  Laporan lokal: `Health_Guard-frontend/playwright-report/index.html` (artifact diabaikan Git).
+  Perubahan setelah revisi tersebut hanya dokumentasi.
 - TEST-05, UX-10 dan BL-12 tetap parsial: QA manual lengkap, native file picker, zoom visual
   dan audit NVDA/VoiceOver belum dijalankan. Checklist eksekusi tersedia di docs/QA.md.
 
@@ -152,8 +155,8 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 ## Verifikasi yang belum boleh dianggap selesai
 
 1. Melaksanakan QA manual lengkap (TEST-05) dan verifikasi keyboard/visual manual (UX-10).
-   TEST-04 memiliki bukti empat tes browser lulus lokal pada 21 November; perluasan suite
-   dicatat pada pembaruan terbaru di atas. TEST-02 selesai; warning file_get_contents sudah hilang.
+   TEST-04 memiliki bukti seluruh lima tes browser lulus lokal pada 21 November.
+   TEST-02 selesai; warning file_get_contents sudah hilang.
 2. Manual screen-reader audit NVDA/VoiceOver dan penerimaan desain bisnis.
 3. SMTP eksternal, kebijakan retensi/durasi, data provider/polis nyata, serta pencatatan pembayaran operasional perlu konfigurasi pengelola. Fitur tersedia tetapi default email/retention nonaktif.
 4. Benchmark dan penilaian query pada volume data produksi. Uji contention InnoDB dasar dan ketersediaan indeks sudah lulus, tetapi tidak membuktikan kapasitas produksi.
