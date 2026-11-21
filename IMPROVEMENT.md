@@ -17,13 +17,20 @@ Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - 
 
 ## Progress summary
 
-| Phase | Scope | Done | Total | Status |
-| --- | --- | --- | --- | --- |
-| P0 | Security and authorization hardening | 8 | 8 | `[x]` |
-| P1 | Database, claim history, tests and UX | 26 | 28 | `[~]` |
-| P2 | Maintainability, CI and operations | 14 | 14 | `[x]` |
-| P3 | Product backlog | 13 | 14 | `[~]` |
-| **Total** |  | **61** | **64** | `[~]` |
+| Phase | Scope | Done | Total | Status | Remaining acceptance gate |
+| --- | --- | --- | --- | --- | --- |
+| P0 | Security and authorization hardening | 8 | 8 | `[x]` | — |
+| P1 | Database, claim history, tests and UX | 26 | 28 | `[~]` | TEST-05: full manual QA; UX-10: manual keyboard/native picker/visual checks |
+| P2 | Maintainability, CI and operations | 14 | 14 | `[x]` | — |
+| P3 | Product backlog | 13 | 14 | `[~]` | BL-12: manual NVDA/VoiceOver audit |
+| **Total** |  | **61** | **64** | `[~]` | **3 tickets await manual evidence** |
+
+Completion review (21 November): the user confirmed they cannot perform the manual audit yet.
+This agent session has no interactive desktop-control tool; NVDA was not found in the standard
+installation locations. No manual observations or accessibility sign-off have been supplied.
+The checklist and automated regressions can be improved, but the three tickets cannot truthfully
+be marked done until their manual acceptance evidence exists. This is a verification dependency,
+not permission to waive the criteria or a claim that the entire feature set is absent.
 
 Audit note (2026-11-21): **61/64 complete**. All five browser tests now pass locally
 on Chrome against disposable SQLite/storage, including the claim lifecycle matrix, keyboard
