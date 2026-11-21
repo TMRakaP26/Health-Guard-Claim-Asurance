@@ -1,6 +1,6 @@
 # Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
-Last updated: 2026-11-20 (implementation audit: 61/64 done, 3 in progress; evidence is recorded
+Last updated: 2026-11-21 (implementation audit: 61/64 done, 3 in progress; evidence is recorded
 in `docs/IMPLEMENTATION.md`).
 
 **Audience:** implementation agents working on this repository.
@@ -25,33 +25,29 @@ Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - 
 | P3 | Product backlog | 13 | 14 | `[~]` |
 | **Total** |  | **61** | **64** | `[~]` |
 
-Audit note (2026-11-19): **60/64 complete**. Evidence is recorded in `docs/IMPLEMENTATION.md`
-and the criterion-to-test map in `docs/TEST-COVERAGE.md`. `TEST-02` is now complete:
-at commit `151ca213f30a568071e19a2916339ddc89b8742d`, SQLite passed 164 tests (847 assertions,
-2 database-specific skips), MySQL passed 165 tests (862 assertions, 1 database-specific skip),
-and Pint passed. CI now creates a disposable `.env`; the earlier `file_get_contents` warnings
-are gone. Frontend CI passed, with **29 Vitest tests**, 5 cookie-security tests, typecheck,
-lint and build. Local typecheck/lint/29 tests/build also pass with the additional toast fix.
+Audit note (2026-11-21): **61/64 complete**. The four existing browser tests now pass locally
+on Chrome against disposable SQLite/storage, including the claim lifecycle matrix, keyboard
+client/analyst paths, native dialogs, mobile navigation, axe, drafts and locale. This supplies
+the previously missing local evidence for `TEST-04`; it does not establish current remote CI status.
+Backend SQLite passes 164 tests (847 assertions, 2 database-specific skips), and Pint passes.
+Frontend typecheck/lint/build, 30 Vitest tests and 5 cookie-security tests pass locally on Node 22.
+MySQL/Compose results remain historical; they were not rerun on 21 November.
 
-PR #1 was merged on 19 November. Follow-up fixes are in
-[draft PR #2](https://github.com/TMRakaP26/Health-Guard-Claim-Asurance/pull/2), which is not merged.
-Run 44481972881 finished with backend/frontend/Docker passing and E2E failing.
-Run 44690871329 subsequently passed the expanded claim lifecycle matrix (three browser tests
-passed), exposing duplicate pagination labels and dialog focus restoration failures in the
-keyboard test. These are corrected and are being verified in run 44691545596.
+Form step changes now focus a localized step heading; the next Tab reaches the first input.
+A new browser regression exercises interrupted uploads, per-file retry, navigation protection,
+and absence of duplicate claims/documents. Final expanded-suite results are recorded in
+`docs/IMPLEMENTATION.md` and `docs/QA.md` after execution.
 
-Four tickets remain partial: `TEST-04` (expanded browser suite must pass), `TEST-05` (manual QA),
-`UX-10` (full manual keyboard path), and `BL-12` (manual screen-reader audit).
-The toast contrast correction is published. Further fixes constrain mobile grids, distinguish
-conversation/history pagination landmarks, and restore focus after closing dialogs. A local
-Edge layout fixture previously overflowed to 750 px at 360 px; it now fits 360/390/768/1440 px.
-Manual QA/accessibility results will not be inferred from automated checks.
+Three tickets remain partial: `TEST-05` (full manual QA), `UX-10` (full manual keyboard/visual
+verification), and `BL-12` (manual screen-reader audit). Automated results do not close these
+manual acceptance criteria. See `docs/TEST-COVERAGE.md` for the criterion-to-test map and
+`docs/IMPLEMENTATION.md` for dated historical PR/CI evidence.
 
 ---
 
 ## 1. How to use this document
 
-1. Read sections 2-4 first so you understand the current system before changing it.
+1. Read README.md, docs/ADR.md and docs/IMPLEMENTATION.md for the current system. Sections 2-3 below describe the original baseline and risks; read section 4 for the target architecture.
 2. Execute workstreams in the order shown in section 6. Security work comes before feature work.
 3. Treat each work item ID (`SEC-01`, `DB-01`, `HIST-01`, etc.) as a ticket. One PR should normally cover one ticket or a small group of related tickets.
 4. Every ticket has acceptance criteria. Do not mark it `[x]` until those criteria and the relevant tests pass.
@@ -63,7 +59,11 @@ Manual QA/accessibility results will not be inferred from automated checks.
 
 ---
 
-## 2. Current project map
+## 2. Original baseline project map (commit cd329e0)
+
+This section is historical, not the current runtime. The implemented application uses MySQL8.4,
+three roles (client/analyst/admin), private documents, claim history and `src/app/portal/`.
+Use `compose.yaml`, `routes/api.php`, README.md and docs/ADR.md for the current architecture.
 
 ### 2.1 Repository layout
 
@@ -161,7 +161,7 @@ Claim URLs use the public ID (`CLM-YYYY-NNN`). Document relationships use the nu
 
 ---
 
-## 3. Assessment
+## 3. Original baseline assessment
 
 ### 3.1 What is good
 
@@ -861,4 +861,8 @@ A change is complete only when:
 
 The original baseline limitations were re-checked against the current code. The following are now resolved: private claim documents; immutable claim history with UI; polling default with optional SSE and email; deep-linked claim detail; server-side pagination/filter/stats/export; real profile data; Needs Info resubmission; assigned-analyst-only decisions; client-only public registration; password-free Quick Sign In; `_gen/` removal; frontend typecheck/lint/unit/E2E scripts; CI and MySQL backups.
 
-Remaining verification gaps are tracked as `[~]` in the tickets: exhaustive validation-boundary tests, full component/E2E scenario matrix, full manual QA execution, manual keyboard-only verification, and manual screen-reader audit. Per-file upload retry/remove and explicit error summary/focus-first were completed and regression-tested on 2026-11-19. Remote CI for draft PR #1 is successful; backend runtime warnings remain documented in `docs/IMPLEMENTATION.md`.
+At the time of this historical audit, verification gaps included validation boundaries and the
+expanded browser matrix. TEST-02 and TEST-04 now have passing evidence; the current outstanding
+items are manual QA, manual keyboard/visual verification and the screen-reader audit. The old
+backend file_get_contents warnings were resolved. See the dated evidence in
+`docs/IMPLEMENTATION.md`; old PR/CI results are not assertions about the latest remote revision.

@@ -21,6 +21,7 @@ Routes: /claims, /claims/new, /claims/:claimId, /claims/:claimId/edit, /drafts, 
 Draf berisi data formulir di server; berkas tidak disimpan di browser. Unggahan gagal mempertahankan claim ID dan daftar unggahan berhasil selama halaman terbuka. Setelah reload, lanjutkan unggahan pada detail klaim; jangan membuat pengajuan baru.
 
 Formulir menampilkan ringkasan kesalahan, pesan per field, dan memfokuskan input invalid pertama.
+Saat maju/mundur, fokus menuju judul langkah baru; Tab berikutnya menuju input pertama.
 Pada langkah dokumen/konfirmasi, periksa nama berkas dan hapus pilihan yang tidak diperlukan.
 Jika unggahan terputus, tombol retry per berkas melanjutkan berkas tersebut tanpa mengirim ulang
 berkas yang sudah berhasil. Navigasi keluar tetap memunculkan peringatan selama unggahan belum selesai.
@@ -31,3 +32,8 @@ Storage unggahan E2E juga ditempatkan di direktori sementara yang sama dengan da
 `LARAVEL_STORAGE_PATH`. Suite tambahan mencakup matriks klaim/otorisasi dan alur keyboard
 client/analis beserta dialog. Lihat [peta cakupan tes](../docs/TEST-COVERAGE.md) untuk hubungan
 antara tiket, tes otomatis, dan pemeriksaan manual yang masih diperlukan.
+
+`upload-recovery.spec.ts` memutus satu unggahan sebelum mencapai server dan memeriksa retry,
+dialog navigasi, serta tidak adanya duplikasi klaim/dokumen setelah reload.
+Di PowerShell yang memblokir `npm.ps1`, gunakan `npm.cmd` tanpa mengubah execution policy.
+Untuk Chrome lokal: `$env:PLAYWRIGHT_CHANNEL='chrome'; npm.cmd run test:e2e`.

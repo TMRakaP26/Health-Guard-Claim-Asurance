@@ -18,6 +18,29 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Bukti lokal dan CI
 
+### Pembaruan 21 November 2026
+
+- Runtime lokal kini tersedia: Node 22.22.0, PHP 8.3.30 dengan pdo_sqlite/pdo_mysql,
+  serta Google Chrome. Catatan 20 November tentang PHP yang tidak tersedia bersifat historis.
+- Backend SQLite: `php vendor/bin/phpunit --display-warnings` dengan APP_ENV=testing,
+  DB_CONNECTION=sqlite, DB_DATABASE=:memory:, DB_URL kosong dan cache/session array lulus:
+  **164 passed, 2 skipped, 847 asersi**. `php vendor/bin/pint --test` lulus.
+  Tidak ada pengujian MySQL/Compose atau perubahan database deployment pada sesi ini.
+- Empat tes browser sebelumnya **lulus lokal** dengan database/storage disposable:
+  matriks registrasi/otorisasi/keputusan, alur keyboard client/analis, Needs Info/resubmit,
+  serta aksesibilitas/draf/locale. TEST-04 kini memiliki bukti eksekusi lokal yang sebelumnya
+  belum dicatat; status CI remote terbaru tidak diperiksa ulang.
+- Perbaikan UX-10/BL-12: perpindahan langkah formulir memfokuskan judul langkah berbahasa
+  Indonesia/English; Tab berikutnya menuju input pertama. Tes komponen memeriksa maju/mundur,
+  fokus input dan aria-current; tes browser keyboard juga memeriksa fokus pada langkah layanan.
+- Typecheck, lint, **30 Vitest tests**, **5 cookie-security tests**, dan build produksi lulus.
+- Ditambah `upload-recovery.spec.ts`: tiga PDF dipilih, satu dihapus; unggahan kedua diputus
+  sebelum mencapai server. Tes memeriksa dialog navigasi, retry per berkas pada claim ID yang
+  sama, satu pembuatan klaim, dan tidak ada duplikasi dokumen/histori setelah reload.
+  Suite lima tes sedang diverifikasi pada revisi kode `7acae1087867e211dd29d08fd46c03c5d6f38cee`.
+- TEST-05, UX-10 dan BL-12 tetap parsial: QA manual lengkap, native file picker, zoom visual
+  dan audit NVDA/VoiceOver belum dijalankan. Checklist eksekusi tersedia di docs/QA.md.
+
 ### Pembaruan 20 November 2026
 
 - PR #1 sudah di-merge pada 19 November; perubahan berikutnya tersedia di
@@ -124,7 +147,9 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Verifikasi yang belum boleh dianggap selesai
 
-1. Menuntaskan TEST-04 dengan seluruh tes browser lulus, termasuk koreksi layout/fokus/landmark. TEST-02 selesai pada SQLite/MySQL dan warning `file_get_contents` sudah hilang. Koreksi kontras sudah dipublikasikan.
+1. Melaksanakan QA manual lengkap (TEST-05) dan verifikasi keyboard/visual manual (UX-10).
+   TEST-04 memiliki bukti empat tes browser lulus lokal pada 21 November; perluasan suite
+   dicatat pada pembaruan terbaru di atas. TEST-02 selesai; warning file_get_contents sudah hilang.
 2. Manual screen-reader audit NVDA/VoiceOver dan penerimaan desain bisnis.
 3. SMTP eksternal, kebijakan retensi/durasi, data provider/polis nyata, serta pencatatan pembayaran operasional perlu konfigurasi pengelola. Fitur tersedia tetapi default email/retention nonaktif.
 4. Benchmark dan penilaian query pada volume data produksi. Uji contention InnoDB dasar dan ketersediaan indeks sudah lulus, tetapi tidak membuktikan kapasitas produksi.
