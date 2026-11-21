@@ -18,6 +18,22 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Bukti lokal dan CI
 
+### Lanjutan penutupan P1/P3 — 21 November 2026
+
+- Pengguna menyatakan belum bisa melakukan audit manual. Sesi agen tidak menyediakan alat
+  kendali desktop interaktif; NVDA tidak ditemukan pada lokasi instalasi standar. Hasil
+  pengujian manual dan screen-reader tidak tersedia, sehingga TEST-05, UX-10 dan BL-12 tetap
+  parsial. Progress summary kini menyebut kriteria tersisa secara eksplisit per fase.
+- Ditambah `profile-admin.spec.ts`: persistensi telepon/DOB/BPJS/alamat setelah reload,
+  axe dan overflow pada profil/draf/notifikasi/panduan mobile; pembuatan provider admin,
+  persistensi setelah reload, navigasi berlabel berbeda dan axe pada 390/768/1440 px serta ID/EN.
+- Eksekusi awal: skenario profil lulus; skenario admin menemukan pelanggaran axe
+  `landmark-unique` karena kedua pager memakai label Pagination. Kedua pager admin kini
+  berlabel Halaman pengguna/User pages dan Halaman permintaan penghapusan/Deletion request pages.
+- Typecheck, lint, 30 Vitest tests dan build produksi lulus setelah perbaikan. Suite lengkap
+  tujuh tes browser sedang diverifikasi. Bukti ini tidak menggantikan QA manual, native picker,
+  zoom browser 200%, ataupun pembacaan langsung dengan NVDA/VoiceOver.
+
 ### Pembaruan 21 November 2026
 
 - Runtime lokal kini tersedia: Node 22.22.0, PHP 8.3.30 dengan pdo_sqlite/pdo_mysql,
@@ -44,7 +60,8 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
   `3e85bab617625fc1cd521e71e604f87764e4f39b`, melalui
   `$env:PLAYWRIGHT_CHANNEL='chrome'; npm.cmd run test:e2e`.
   Laporan lokal: `Health_Guard-frontend/playwright-report/index.html` (artifact diabaikan Git).
-  Perubahan setelah revisi tersebut hanya dokumentasi.
+  Pada penutupan sesi tersebut perubahan lanjutan hanya dokumentasi; lanjutan P1/P3 di atas
+  menambah perubahan admin dan pengujian pada revisi berikutnya.
 - TEST-05, UX-10 dan BL-12 tetap parsial: QA manual lengkap, native file picker, zoom visual
   dan audit NVDA/VoiceOver belum dijalankan. Checklist eksekusi tersedia di docs/QA.md.
 

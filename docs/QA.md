@@ -30,6 +30,12 @@ Do not label manual screen-reader testing as completed merely because axe passes
 
 ## Execution record — 21 November 2026
 
+Follow-up: the user confirmed manual auditing is not currently available. This session has
+no interactive desktop-control tool, and NVDA was not found in standard installation locations.
+No tester observations have been supplied. Manual rows below remain unexecuted, not passed.
+The additional profile/admin browser audit reproduced duplicate admin pagination landmarks;
+the labels were corrected in ID/EN. The expanded seven-test suite is being verified.
+
 | Check | Result | Evidence / next requirement |
 |---|---|---|
 | Frontend typecheck, lint, build | Passed | Local Node 22.22.0 |
@@ -44,8 +50,9 @@ Do not label manual screen-reader testing as completed merely because axe passes
 | Remote CI | Not rechecked | Local results do not establish the status of the latest remote commit |
 
 The 19–20 November PR/CI execution history is preserved in [IMPLEMENTATION.md](IMPLEMENTATION.md).
-Browser-tested code revision: `3e85bab617625fc1cd521e71e604f87764e4f39b`; subsequent changes are
-documentation only. Local report: `Health_Guard-frontend/playwright-report/index.html` (Git-ignored).
+The earlier five-test run used revision `3e85bab617625fc1cd521e71e604f87764e4f39b`.
+Later admin fixes have their own verification record in IMPLEMENTATION.md.
+Local report: `Health_Guard-frontend/playwright-report/index.html` (Git-ignored).
 See [TEST-COVERAGE.md](TEST-COVERAGE.md) for criterion-to-test mapping. The previous claim that
 TEST-04 still lacked a passing expanded browser matrix is superseded by the local results above.
 

@@ -35,5 +35,7 @@ antara tiket, tes otomatis, dan pemeriksaan manual yang masih diperlukan.
 
 `upload-recovery.spec.ts` memutus satu unggahan sebelum mencapai server dan memeriksa retry,
 dialog navigasi, serta tidak adanya duplikasi klaim/dokumen setelah reload.
+`profile-admin.spec.ts` memeriksa persistensi profil/provider dan aksesibilitas halaman tambahan.
+Pagination pengguna dan permintaan penghapusan pada Administrasi memiliki label berbeda di ID/EN.
 Di PowerShell yang memblokir `npm.ps1`, gunakan `npm.cmd` tanpa mengubah execution policy.
 Untuk Chrome lokal: `$env:PLAYWRIGHT_CHANNEL='chrome'; npm.cmd run test:e2e`.

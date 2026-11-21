@@ -35,6 +35,7 @@ Tests exercise the replacements rather than adding tests for removed components.
 | Form validation, files, drafts, retry | portal.test.tsx; workflows.spec.ts; claims-matrix.spec.ts |
 | Upload recovery across real browser/API requests | upload-recovery.spec.ts: remove one of three PDFs, abort second upload, stay in unsaved dialog, retry same claim, assert one creation and no duplicate uploaded files/history |
 | Step focus and keyboard order | portal.test.tsx: next/back heading focus and aria-current; keyboard.spec.ts: heading focus then Tab to Provider |
+| Profile/admin QA and broader axe checks | profile-admin.spec.ts: saved profile fields and provider survive reload; axe on profile/drafts/notifications/guide; admin at 390/768/1440 px and distinct pagination names in ID/EN |
 | Notifications | navigation.test.tsx: unread count, single/all read, immediate count refresh, navigation even when mark-read fails; claims-matrix.spec.ts end-to-end |
 | Status and history | portal.test.tsx: all five badges; actor/transition/amount/notes; empty state; independent history retry |
 | E2E 1: registration/login/submission/document/history | claims-matrix.spec.ts |
@@ -50,7 +51,7 @@ Tests exercise the replacements rather than adding tests for removed components.
 TEST-04 has local passing evidence on 21 November: all five Playwright tests passed in 3.3 minutes
 on Chrome 157.0.8103.79 with disposable SQLite/storage, including upload recovery and step-focus
 assertions. Tested code revision: 3e85bab617625fc1cd521e71e604f87764e4f39b;
-subsequent edits only update documentation. See IMPLEMENTATION.md for the execution record.
+later profile/admin changes are tracked separately in IMPLEMENTATION.md.
 Typecheck/lint/build and 30 Vitest tests pass; 5 cookie-security tests also pass.
 Backend SQLite was rerun locally: 164 passed / 2 database-specific skips (847 assertions),
 with Pint passing. The MySQL evidence remains run 44481972881 at commit
