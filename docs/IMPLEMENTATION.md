@@ -21,7 +21,8 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 ### Pembaruan 21 November 2026
 
 - Runtime lokal kini tersedia: Node 22.22.0, PHP 8.3.30 dengan pdo_sqlite/pdo_mysql,
-  serta Google Chrome. Catatan 20 November tentang PHP yang tidak tersedia bersifat historis.
+  serta Google Chrome 157.0.8103.79 pada Windows. Catatan 20 November tentang PHP yang tidak
+  tersedia bersifat historis.
 - Backend SQLite: `php vendor/bin/phpunit --display-warnings` dengan APP_ENV=testing,
   DB_CONNECTION=sqlite, DB_DATABASE=:memory:, DB_URL kosong dan cache/session array lulus:
   **164 passed, 2 skipped, 847 asersi**. `php vendor/bin/pint --test` lulus.
@@ -37,7 +38,10 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 - Ditambah `upload-recovery.spec.ts`: tiga PDF dipilih, satu dihapus; unggahan kedua diputus
   sebelum mencapai server. Tes memeriksa dialog navigasi, retry per berkas pada claim ID yang
   sama, satu pembuatan klaim, dan tidak ada duplikasi dokumen/histori setelah reload.
-  Suite lima tes sedang diverifikasi pada revisi kode `7acae1087867e211dd29d08fd46c03c5d6f38cee`.
+  Percobaan pertama membuktikan retry/dokumen berhasil tetapi selector histori tes memakai
+  nama event mentah `document_uploaded`, sedangkan UI merender `document uploaded`.
+  Selector dikoreksi; suite lima tes sedang diverifikasi pada revisi kode
+  `3e85bab617625fc1cd521e71e604f87764e4f39b`.
 - TEST-05, UX-10 dan BL-12 tetap parsial: QA manual lengkap, native file picker, zoom visual
   dan audit NVDA/VoiceOver belum dijalankan. Checklist eksekusi tersedia di docs/QA.md.
 
