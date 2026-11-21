@@ -1,4 +1,4 @@
-# Remaining ticket coverage — 20 November 2026
+# Remaining ticket coverage — 21 November 2026
 
 This map links the original IMPROVEMENT.md criteria to the current portal implementation.
 The old ProtectedRoute, ClaimContext and NotificationBell components have been replaced by
@@ -33,6 +33,8 @@ Tests exercise the replacements rather than adding tests for removed components.
 | Route protection | navigation.test.tsx: guest redirect with return URL, allowed client content, analyst denied client form |
 | Claim API data/state | portal.test.tsx: server pagination/totals, detail by URL; browser/backend lifecycle tests cover mutation/refetch and resubmission resets |
 | Form validation, files, drafts, retry | portal.test.tsx; workflows.spec.ts; claims-matrix.spec.ts |
+| Upload recovery across real browser/API requests | upload-recovery.spec.ts: remove one of three PDFs, abort second upload, stay in unsaved dialog, retry same claim, assert one creation and no duplicate uploaded files/history |
+| Step focus and keyboard order | portal.test.tsx: next/back heading focus and aria-current; keyboard.spec.ts: heading focus then Tab to Provider |
 | Notifications | navigation.test.tsx: unread count, single/all read, immediate count refresh, navigation even when mark-read fails; claims-matrix.spec.ts end-to-end |
 | Status and history | portal.test.tsx: all five badges; actor/transition/amount/notes; empty state; independent history retry |
 | E2E 1: registration/login/submission/document/history | claims-matrix.spec.ts |
@@ -45,14 +47,15 @@ Tests exercise the replacements rather than adding tests for removed components.
 | E2E 8: another client's data | claims-matrix.spec.ts checks claim/history/document API denial and UI denial |
 | Cleanup | server.mjs puts DB and storage in the same disposable temporary directory; test teardown stops servers and removes it |
 
-The expanded suite was published with permission. Run 44481298732 exposed an email fixture
-and a browser datalist selector mismatch; corrections are in commit 151ca213f30a568071e19a2916339ddc89b8742d.
-The keyboard test also detected a real success-toast contrast failure (4.25:1 versus 4.5:1).
-The color correction is published. PR #1 was merged; draft PR #2 contains the follow-up fixes.
-TEST-02 passed on both databases in run 44481972881 at commit 151ca213f30a568071e19a2916339ddc89b8742d:
-SQLite 164 passed / 2 database-specific skips (847 assertions), MySQL 165 passed / 1
-database-specific skip (862 assertions). Pint passed, and the earlier file_get_contents warnings
-are gone. TEST-04 remains open until the browser suite passes.
+TEST-04 has local passing evidence on 21 November: all four existing Playwright tests passed
+on Chrome with disposable SQLite/storage. The additional upload-recovery test and step-focus
+assertions are being verified as a five-test suite; see IMPLEMENTATION.md for the final result.
+Typecheck/lint/build and 30 Vitest tests pass; 5 cookie-security tests also pass.
+Backend SQLite was rerun locally: 164 passed / 2 database-specific skips (847 assertions),
+with Pint passing. The MySQL evidence remains run 44481972881 at commit
+151ca213f30a568071e19a2916339ddc89b8742d: 165 passed / 1 database-specific skip (862 assertions).
+Current remote CI/PR status was not rechecked; historical failures and corrections are retained
+in IMPLEMENTATION.md rather than treated as current blockers.
 
 ## TEST-05, UX-10, BL-12: manual verification
 
@@ -73,6 +76,6 @@ Record the following before closing the manual tickets in docs/QA.md:
 | NVDA or VoiceOver version, browser and announcements for labels/errors/status/dialogs | Not executed in this session |
 | 200% zoom, 390/768/1440 px and visible focus/contrast | Full manual matrix not executed |
 
-The host has no available PHP/Composer runtime or responding Docker Linux engine.
-The expanded backend/browser suite is running in CI. Manual tickets stay open until actual
-observations are recorded; neither source inspection nor automated axe results close them.
+PHP 8.3.30, Node 22.22.0 and Chrome are now available locally. No MySQL/Compose verification
+was performed in this session. Manual tickets stay open until actual observations are recorded;
+neither source inspection nor automated axe results close them.
