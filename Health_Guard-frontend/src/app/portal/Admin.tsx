@@ -93,7 +93,12 @@ export function Admin() {
           </table>
         </div>
         {users.data && (
-          <Pager page={page} last={users.data.last_page} onChange={setPage} />
+          <Pager
+            label={t("Halaman pengguna", "User pages")}
+            page={page}
+            last={users.data.last_page}
+            onChange={setPage}
+          />
         )}
         <form
           onSubmit={(e) => {
@@ -296,6 +301,10 @@ export function Admin() {
         ))}
         {deletions.data && (
           <Pager
+            label={t(
+              "Halaman permintaan penghapusan",
+              "Deletion request pages",
+            )}
             page={deletionPage}
             last={deletions.data.last_page}
             onChange={setDeletionPage}

@@ -64,6 +64,7 @@ test("profile details persist and client pages have no axe violations", async ({
 test("admin catalog persists and administration has distinct landmarks", async ({
   page,
 }, testInfo) => {
+  const code = `QA-PROVIDER-${testInfo.retry}`;
   await login(page, "admin");
   await page.goto("/admin");
   await expect(
@@ -72,7 +73,7 @@ test("admin catalog persists and administration has distinct landmarks", async (
   await expect(
     page.getByText("Memuat / Loading…", { exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Kode", { exact: true }).fill("QA-PROVIDER");
+  await page.getByLabel("Kode", { exact: true }).fill(code);
   await page.getByLabel("Nama", { exact: true }).fill("QA Fixture Hospital");
   await page
     .getByLabel("Alamat", { exact: true })
@@ -80,14 +81,23 @@ test("admin catalog persists and administration has distinct landmarks", async (
   await page.getByRole("button", { name: "Tambah", exact: true }).click();
   await expect(
     page.getByRole("button", {
-      name: "QA-PROVIDER · QA Fixture Hospital · Active",
+      name: `${code} · QA Fixture Hospital · Active`,
       exact: true,
     }),
   ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("button", {
-      name: "QA-PROVIDER · QA Fixture Hospital · Active",
+      name: `${code} · QA Fixture Hospital · Active`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Halaman pengguna", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", {
+      name: "Halaman permintaan penghapusan",
       exact: true,
     }),
   ).toBeVisible();
@@ -104,4 +114,17 @@ test("admin catalog persists and administration has distinct landmarks", async (
       fullPage: true,
     });
   }
+  await page
+    .getByRole("combobox", { name: "Bahasa", exact: true })
+    .selectOption("en");
+  await expect(
+    page.getByRole("navigation", { name: "User pages", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", {
+      name: "Deletion request pages",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
