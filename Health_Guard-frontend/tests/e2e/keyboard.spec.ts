@@ -3,7 +3,9 @@ import AxeBuilder from "@axe-core/playwright";
 
 async function expectNoPageOverflow(page: Page) {
   expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
   ).toBeTruthy();
 }
 
@@ -56,13 +58,17 @@ test("keyboard client submission and analyst decision with native dialog focus",
   await expectNoPageOverflow(page);
   const menuButton = page.getByRole("button", { name: "Buka menu" });
   await activate(page, menuButton);
-  await expect(page.getByRole("dialog", { name: "Menu navigasi" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Menu navigasi" }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menuButton).toBeFocused();
   await activate(page, menuButton);
   await activate(
     page,
-    page.getByRole("dialog").getByRole("link", { name: "Ajukan klaim", exact: true }),
+    page
+      .getByRole("dialog")
+      .getByRole("link", { name: "Ajukan klaim", exact: true }),
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await enter(page, page.getByLabel("Nama pasien"), "Keyboard patient");
@@ -70,6 +76,11 @@ test("keyboard client submission and analyst decision with native dialog focus",
     page,
     page.getByRole("button", { name: "Lanjut", exact: true }),
   );
+  await expect(
+    page.getByRole("heading", { name: "Langkah 2 dari 4: Layanan" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Provider", { exact: true })).toBeFocused();
   await enter(
     page,
     page.getByLabel("Provider", { exact: true }),
@@ -88,7 +99,10 @@ test("keyboard client submission and analyst decision with native dialog focus",
   await chooser.setFiles({
     name: "keyboard.png",
     mimeType: "image/png",
-    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64"),
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=",
+      "base64",
+    ),
   });
   await activate(
     page,
@@ -102,15 +116,25 @@ test("keyboard client submission and analyst decision with native dialog focus",
   await expect(
     page.getByRole("heading", { name: "Histori klaim" }),
   ).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Halaman percakapan" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Halaman histori klaim" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Halaman percakapan" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Halaman histori klaim" }),
+  ).toBeVisible();
   await expectNoPageOverflow(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  const documentButton = page.getByRole("button", { name: "keyboard.png", exact: true });
+  const documentButton = page.getByRole("button", {
+    name: "keyboard.png",
+    exact: true,
+  });
   await activate(page, documentButton);
   const preview = page.getByRole("dialog", { name: "keyboard.png" });
   await expect(preview).toBeVisible();
-  await expect(preview.locator("iframe")).toHaveAttribute("title", "keyboard.png");
+  await expect(preview.locator("iframe")).toHaveAttribute(
+    "title",
+    "keyboard.png",
+  );
   await page.keyboard.press("Escape");
   await expect(preview).toHaveCount(0);
   await expect(documentButton).toBeFocused();

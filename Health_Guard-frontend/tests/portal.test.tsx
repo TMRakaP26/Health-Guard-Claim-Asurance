@@ -159,6 +159,26 @@ async function prepareClaim(files: File[] = []) {
     );
 }
 describe("claim form recovery", () => {
+  it("moves focus to the new step heading on next and back", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { providers: [], categories: [] },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(
+      screen.getByRole("heading", { name: "Langkah 2 dari 4: Layanan" }),
+    ).toHaveFocus();
+    await userEvent.tab();
+    expect(screen.getByLabelText("Provider")).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "Kembali" }));
+    expect(
+      screen.getByRole("heading", { name: "Langkah 1 dari 4: Pasien" }),
+    ).toHaveFocus();
+    expect(screen.getByText("1. Pasien")).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+  });
   it("summarizes invalid fields, focuses the first and does not submit", async () => {
     vi.mocked(api.get).mockResolvedValue({
       data: { providers: [], categories: [] },

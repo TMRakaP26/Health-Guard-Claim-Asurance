@@ -83,6 +83,18 @@ export function ClaimForm() {
     patient_date_of_birth: user?.date_of_birth || "",
   });
   const [step, setStep] = useState(1);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef(step);
+  useEffect(() => {
+    if (previousStep.current !== step) stepHeading.current?.focus();
+    previousStep.current = step;
+  }, [step]);
+  const stepLabels = [
+    t("Pasien", "Patient"),
+    t("Layanan", "Service"),
+    t("Dokumen", "Documents"),
+    t("Tinjau", "Review"),
+  ];
   const [dirty, setDirty] = useState(false);
   const [draftId, setDraftId] = useState<number | undefined>(
     Number(params.get("draft")) || undefined,
@@ -220,12 +232,7 @@ export function ClaimForm() {
       <Feedback {...claim} retry={claim.reload} />
       <Feedback error={action.error} />
       <ol className="steps">
-        {[
-          t("Pasien", "Patient"),
-          t("Layanan", "Service"),
-          t("Dokumen", "Documents"),
-          t("Tinjau", "Review"),
-        ].map((s, i) => (
+        {stepLabels.map((s, i) => (
           <li key={s} aria-current={step === i + 1 ? "step" : undefined}>
             {i + 1}. {s}
           </li>
@@ -272,6 +279,10 @@ export function ClaimForm() {
           else void action.run(() => submit());
         }}
       >
+        <h2 ref={stepHeading} tabIndex={-1}>
+          {t("Langkah", "Step")} {step} {t("dari", "of")} 4:{" "}
+          {stepLabels[step - 1]}
+        </h2>
         {validation.length > 0 && (
           <div className="error" role="alert">
             <strong>
