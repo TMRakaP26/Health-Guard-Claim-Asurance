@@ -106,6 +106,6 @@ test("failed upload can be retried without duplicate claims or confirmed documen
   ).toHaveCount(0);
   await expect(page.getByText("submitted", { exact: true })).toHaveCount(1);
   await expect(
-    page.getByText("document_uploaded", { exact: true }),
+    page.getByText("document uploaded", { exact: true }),
   ).toHaveCount(2);
 });
