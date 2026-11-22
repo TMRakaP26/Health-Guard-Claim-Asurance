@@ -1,4 +1,27 @@
-# Remaining ticket coverage — 21 November 2026
+# Ticket coverage — 22 November 2026
+
+## Revised automated acceptance
+
+On 22 November the user requested agent-run QA without manual testing. The following map
+replaces the previous manual acceptance gates for TEST-05, UX-10 and BL-12. Historical manual
+requirements below describe the earlier scope; they do not claim unperformed tests passed.
+
+| QA scenario | Executable evidence |
+|---|---|
+| Registration/login, authorization and validation | claims-matrix.spec.ts; SecurityAuthTest, SecurityAuthorizationTest, ValidationBoundaryTest |
+| All decisions, resubmission, history, notification navigation, direct URL/reload | claims-matrix.spec.ts; workflows.spec.ts; ProductWorkflowsTest; navigation.test.tsx |
+| Profile/photo/password | profile-admin.spec.ts; AuthTest, SecurityUploadTest, SecurityAuthTest; ProductWorkflowsTest password reset |
+| Draft resume and upload recovery without duplicates | workflows.spec.ts; upload-recovery.spec.ts; portal.test.tsx |
+| Pagination/filter/export across more than one page | portal.test.tsx; ProductWorkflowsTest::test_filters_stats_and_export_cover_all_pages_and_escape_formulas |
+| Admin/catalog/payment/invitation/2FA/retention guards | profile-admin.spec.ts; ProductWorkflowsTest |
+| Loading, failed network request, retry, empty result and revoked session | qa-states.spec.ts; navigation.test.tsx; api-client.test.ts |
+| Keyboard client/analyst, dialogs, preview, responsive widths, reduced motion | keyboard.spec.ts; workflows.spec.ts; profile-admin.spec.ts |
+| ID/EN labels, invalid-field semantics, alert, current step, focus and axe | qa-states.spec.ts; portal.test.tsx; profile-admin.spec.ts; keyboard.spec.ts |
+
+Browser tests validate the UI against a disposable real backend except deliberate network
+interception for loading/failure states. Some operational workflows are verified at API level,
+not through every UI control. No actual screen-reader speech, OS picker interaction, browser
+zoom 200%, live SMTP, production MySQL or deployment-capacity claim follows from this map.
 
 This map links the original IMPROVEMENT.md criteria to the current portal implementation.
 The old ProtectedRoute, ClaimContext and NotificationBell components have been replaced by
