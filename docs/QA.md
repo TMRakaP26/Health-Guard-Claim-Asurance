@@ -15,6 +15,25 @@ Automated: composer test; Pint; TypeScript strict; ESLint; Vitest/RTL; cookie se
 9. Configure Mailpit or test SMTP; verify email and reset password. Old tokens/reset token must no longer work. Enable TOTP, test replay and one-use recovery.
 10. Request deletion. With feature disabled or open claims: reject approval. In disposable data with approved policy: delete account/files and preserve review record.
 
+## Empty, loading, error and slow-network scenarios (TEST-05)
+
+Use disposable accounts and browser network controls; record observations in the worksheet.
+
+1. With a new client, open claims, drafts, notifications and claim history without entries.
+   Confirm each empty state is understandable and offers the appropriate next action.
+2. Throttle the network before opening a claim directly by URL and refreshing it. Confirm
+   loading feedback appears, then the correct claim; repeat with the analyst account.
+3. Go offline before loading the list/detail/history. Confirm a readable error and retry
+   control; restore connectivity and retry without losing filters or showing another claim.
+4. Delay a form submission and an analyst decision. Confirm busy feedback prevents duplicate
+   actions; after completion, reload and verify exactly one mutation/history event.
+5. Interrupt a document upload after the claim is saved. Confirm the failed filename is
+   identified, navigation warns about incomplete uploads, and retry uses the existing claim.
+6. Expire the session while on a protected page. Confirm the next protected request returns
+   to login; after signing in, verify the intended destination and ownership restrictions.
+
+These steps extend the manual checklist; they are not recorded as executed.
+
 ## Accessibility
 
 Automated axe checks are included for login and mobile claims list. Manual audit still requires assistive technology:
@@ -81,6 +100,7 @@ must not be treated as a pass. Do not put real patient information into screensh
 | TEST-05 core 1–3 | Registration errors, persisted profile/photo, draft resume and leave/stay | Pending manual execution |
 | TEST-05 core 4–6 | Upload failure/retry, ownership, assignment conflict, messages, document requests and all decisions | Pending manual execution |
 | TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Pending manual execution |
+| TEST-05 state handling | Empty lists, throttled loading, offline error/retry, duplicate-action prevention, interrupted uploads and expired session | Pending manual execution |
 | UX-10 client | Keyboard login, drawer, four-step form (including Next/Back focus), native file picker, document viewer, history/pagination | Pending manual execution |
 | UX-10 analyst | Keyboard queue, assignment, notes/partial amount, decision dialog trap, Escape and return focus | Pending manual execution |
 | UX-10 visual | 360/390/768/1440 px; actual browser zoom 200%; focus indicator, clipping, independent table scroll, reduced motion | Pending manual execution |
