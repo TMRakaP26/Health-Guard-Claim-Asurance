@@ -36,19 +36,20 @@ test("registration, document, rejection, resubmission, partial approval and priv
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Periksa data pengajuan");
-  await expect(page.getByLabel(/^Provider/)).toBeFocused();
+  await expect(page.getByLabel(/^Rumah sakit/)).toBeFocused();
   await page
-    .getByLabel(/^Provider/)
+    .getByLabel(/^Rumah sakit/)
     .fill("Matrix hospital");
+  await page.getByLabel(/^Penyakit/).fill("Flu");
   await page
-    .getByLabel(/^Kategori klaim/)
+    .getByLabel(/^Jenis layanan/)
     .fill("Outpatient");
-  await page.getByRole("spinbutton", { name: /^Nominal klaim/ }).fill("0");
+  await page.getByLabel(/^Nominal klaim/).fill("0");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await expect(
-    page.getByRole("spinbutton", { name: /^Nominal klaim/ }),
+    page.getByLabel(/^Nominal klaim/),
   ).toBeFocused();
-  await page.getByRole("spinbutton", { name: /^Nominal klaim/ }).fill("500.50");
+  await page.getByLabel(/^Nominal klaim/).fill("500.50");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page
     .getByLabel("Pilih dokumen pendukung")

@@ -66,7 +66,7 @@ class ClaimService
             abort_unless($claim->status->canResubmit(), 409, 'Only rejected, partially approved, or Needs Info claims can be resubmitted.');
             abort_if($claim->payments()->whereIn('status', ['paid', 'settled'])->exists(), 409, 'A paid claim cannot be resubmitted.');
             $from = $claim->status->value;
-            $old = $claim->only(['notes', 'approved_amount', 'amount', 'client_name', 'provider_name', 'type', 'bpjs_number', 'service_date', 'patient_date_of_birth']);
+            $old = $claim->only(['notes', 'approved_amount', 'amount', 'client_name', 'provider_name', 'type', 'disease_name', 'description', 'bpjs_number', 'service_date', 'patient_date_of_birth']);
             $claim->fill($data);
             $claim->status = ClaimStatus::Pending;
             $claim->approved_amount = null;

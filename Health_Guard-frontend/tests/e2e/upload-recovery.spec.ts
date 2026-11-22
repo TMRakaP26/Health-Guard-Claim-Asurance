@@ -14,8 +14,9 @@ test("failed upload can be retried without duplicate claims or confirmed documen
   await expect(page).toHaveURL(/\/claims$/);
   await page.goto("/claims/new");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
-  await page.getByLabel("Provider", { exact: true }).fill("Recovery hospital");
-  await page.getByLabel("Kategori klaim").fill("Outpatient");
+  await page.getByLabel("Rumah sakit", { exact: true }).fill("Recovery hospital");
+  await page.getByLabel("Penyakit").fill("Flu");
+  await page.getByLabel("Jenis layanan").fill("Outpatient");
   await page.getByLabel("Nominal klaim (IDR)").fill("100.50");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page.getByLabel("Pilih dokumen pendukung").setInputFiles(

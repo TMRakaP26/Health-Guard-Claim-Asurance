@@ -22,8 +22,9 @@ test("client submits, analyst requests information, client resubmits, analyst ap
     .click();
   await page.getByLabel("Nama pasien").fill("E2E Patient");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
-  await page.getByLabel("Provider", { exact: true }).fill("E2E Hospital");
-  await page.getByLabel("Kategori klaim").fill("Outpatient");
+  await page.getByLabel("Rumah sakit", { exact: true }).fill("E2E Hospital");
+  await page.getByLabel("Penyakit").fill("Flu");
+  await page.getByLabel("Jenis layanan").fill("Outpatient");
   await page.getByLabel("Nominal klaim (IDR)").fill("1000.50");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page
@@ -107,8 +108,8 @@ test("accessibility, responsive navigation, draft resume and locale", async ({
   await page.getByRole("link", { name: "Saved patient" }).click();
   await expect(page.getByLabel("Nama pasien")).toHaveValue("Saved patient");
   await page
-    .getByRole("combobox", { name: "Bahasa", exact: true })
-    .selectOption("en");
+    .getByRole("button", { name: "EN", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Submit claim" }),
   ).toBeVisible();

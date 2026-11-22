@@ -53,6 +53,20 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Human-friendly identifier derived from the immutable primary key.
+     * This is deliberately separate from bpjs_number.
+     */
+    public function clientId(): ?string
+    {
+        return self::clientIdFor($this->id);
+    }
+
+    public static function clientIdFor(?int $id): ?string
+    {
+        return $id ? sprintf('CL-%06d', $id) : null;
+    }
+
     public function claims()
     {
         return $this->hasMany(Claim::class);

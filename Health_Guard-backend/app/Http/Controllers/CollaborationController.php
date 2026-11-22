@@ -29,7 +29,7 @@ class CollaborationController extends Controller
         $page = $claim->messages()->with(['user', 'documents'])->orderByDesc('id')->paginate($request->integer('per_page', 20));
 
         return response()->json(array_merge($page->toArray(), ['data' => $page->getCollection()->map(fn ($m) => [
-            'id' => $m->id, 'body' => $m->body, 'created_at' => $m->created_at,
+            'id' => $m->id, 'user_id' => $m->user_id, 'body' => $m->body, 'created_at' => $m->created_at,
             'user' => $m->user ? ['id' => $m->user->id, 'name' => $m->user->name, 'role' => $m->user->role] : null,
             'documents' => DocumentResource::collection($m->documents)->resolve(),
         ])]));
@@ -47,7 +47,7 @@ class CollaborationController extends Controller
             $message = $claim->messages()->create(['user_id' => $request->user()->id, 'body' => $data['body']]);
             $recipient = $request->user()->id === $claim->user_id ? $claim->assignedAnalyst : $claim->user;
             if ($recipient) {
-                $notifications->send($recipient, $claim, 'claim_message', 'New claim message', 'There is a new message on your claim.');
+                $notifications->send($recipient, $claim, 'claim_message', 'New chat message', 'There is a new chat message on your claim.');
             }
             $history->record($claim, $request->user(), 'message_added', $claim->status->value, $claim->status->value, metadata: ['message_id' => $message->id]);
 

@@ -17,6 +17,8 @@ class ClaimInputRequest extends FormRequest
 
         return [
             'client_name' => "$required|string|max:255", 'type' => "$required|string|max:255",
+            'disease_name' => 'sometimes|nullable|string|max:255',
+            'description' => 'sometimes|nullable|string|max:4000',
             'provider_name' => "$required|string|max:255",
             'amount' => [$required, 'numeric', 'decimal:0,2', 'gt:0', 'max:'.config('healthguard.max_amount')],
             'bpjs_number' => 'sometimes|nullable|string|max:30',

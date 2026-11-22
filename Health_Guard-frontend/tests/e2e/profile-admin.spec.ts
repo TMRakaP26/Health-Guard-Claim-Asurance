@@ -115,8 +115,8 @@ test("admin catalog persists and administration has distinct landmarks", async (
     });
   }
   await page
-    .getByRole("combobox", { name: "Bahasa", exact: true })
-    .selectOption("en");
+    .getByRole("button", { name: "EN", exact: true })
+    .click();
   await expect(
     page.getByRole("navigation", { name: "User pages", exact: true }),
   ).toBeVisible();

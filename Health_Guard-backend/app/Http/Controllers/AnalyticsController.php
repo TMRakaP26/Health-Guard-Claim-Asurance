@@ -23,6 +23,7 @@ class AnalyticsController extends Controller
             'average_decision_hours' => $hours->isEmpty() ? null : round($hours->avg(), 2),
             'by_status' => (clone $query)->selectRaw('status as label,COUNT(*) as count,SUM(amount) as amount')->groupBy('status')->get(),
             'by_provider' => (clone $query)->selectRaw('provider_name as label,COUNT(*) as count,SUM(amount) as amount')->groupBy('provider_name')->get(),
+            'by_disease' => (clone $query)->selectRaw('disease_name as label,COUNT(*) as count,SUM(amount) as amount')->whereNotNull('disease_name')->where('disease_name', '!=', '')->groupBy('disease_name')->get(),
             'by_type' => (clone $query)->selectRaw('type as label,COUNT(*) as count,SUM(amount) as amount')->groupBy('type')->get()]);
     }
 }

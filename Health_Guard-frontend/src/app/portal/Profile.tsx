@@ -33,6 +33,11 @@ export function Profile() {
   return (
     <>
       <h1>{t("Profil & keamanan", "Profile & security")}</h1>
+      <p>
+        <strong>{t("ID Client", "Client ID")}:</strong>{" "}
+        {user.client_id ||
+          (user.id ? "CL-" + String(user.id).padStart(6, "0") : "—")}
+      </p>
       <Feedback error={action.error} />
       <section className="panel">
         <h2>{t("Data pribadi", "Personal details")}</h2>

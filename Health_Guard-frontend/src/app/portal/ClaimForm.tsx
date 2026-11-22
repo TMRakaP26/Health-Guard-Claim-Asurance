@@ -16,6 +16,7 @@ import {
   Field,
   date,
   fileAccept,
+  MoneyInput,
   rupiah,
   useAction,
   useQuery,
@@ -61,8 +62,9 @@ const empty: ClaimInput = {
   client_name: "",
   provider_name: "",
   type: "",
+  disease_name: "",
+  description: "",
   amount: "",
-  bpjs_number: "",
   patient_date_of_birth: "",
   service_date: "",
 };
@@ -76,12 +78,17 @@ export function ClaimForm() {
   const catalog = useQuery<Catalog>("/catalog");
   const claim = useQuery<Claim>(id ? "/claims/" + id : null);
   const drafts = useQuery<Draft[]>(params.get("draft") ? "/drafts" : null);
-  const [data, setData] = useState<ClaimInput>({
+  // Local calendar date: toISOString() would shift the day in some time zones.
+  const today = new Date().toLocaleDateString("en-CA");
+  const clientId =
+    user?.client_id ||
+    (user?.id ? "CL-" + String(user.id).padStart(6, "0") : "");
+  const [data, setData] = useState<ClaimInput>(() => ({
     ...empty,
     client_name: user?.name || "",
-    bpjs_number: user?.bpjs_number || "",
     patient_date_of_birth: user?.date_of_birth || "",
-  });
+    service_date: id ? "" : today,
+  }));
   const [step, setStep] = useState(1);
   const stepHeading = useRef<HTMLHeadingElement>(null);
   const previousStep = useRef(step);
@@ -211,7 +218,6 @@ export function ClaimForm() {
       setController(undefined);
     }
   }
-  const today = new Date().toLocaleDateString("en-CA");
   if (user?.role !== "client")
     return (
       <p role="alert">
@@ -305,10 +311,17 @@ export function ClaimForm() {
                   maxLength={255}
                   value={data.client_name}
                   name="client_name"
-                  aria-describedby="client_name-error"
+                  aria-label={t("Nama pasien", "Patient name")}
+                  aria-describedby="client_name-error client_name-hint"
                   onChange={(e) => change("client_name", e.target.value)}
                 />
                 <span id="client_name-error">{fieldErrors.client_name}</span>
+                <small id="client_name-hint">
+                  {t(
+                    "Diisi dari profil akun Anda. Ubah jika pasien berbeda.",
+                    "Prefilled from your account profile. Change it if the patient is different.",
+                  )}
+                </small>
               </Field>
               <Field label={t("Tanggal lahir pasien", "Patient date of birth")}>
                 <input
@@ -316,7 +329,8 @@ export function ClaimForm() {
                   max={today}
                   value={data.patient_date_of_birth}
                   name="patient_date_of_birth"
-                  aria-describedby="patient_date_of_birth-error"
+                  aria-label={t("Tanggal lahir pasien", "Patient date of birth")}
+                  aria-describedby="patient_date_of_birth-error patient_date_of_birth-hint"
                   onChange={(e) =>
                     change("patient_date_of_birth", e.target.value)
                   }
@@ -324,22 +338,35 @@ export function ClaimForm() {
                 <span id="patient_date_of_birth-error">
                   {fieldErrors.patient_date_of_birth}
                 </span>
+                {!user?.date_of_birth && (
+                  <small id="patient_date_of_birth-hint">
+                    {t(
+                      "Belum diisi di profil. Lengkapi profil agar tanggal lahir terisi otomatis.",
+                      "Not set in your profile. Complete your profile to autofill this date.",
+                    )}
+                  </small>
+                )}
               </Field>
-              <Field label="Nomor BPJS">
+              <Field label={t("ID Client", "Client ID")}>
                 <input
-                  maxLength={30}
-                  value={data.bpjs_number}
-                  name="bpjs_number"
-                  aria-describedby="bpjs_number-error"
-                  onChange={(e) => change("bpjs_number", e.target.value)}
+                  value={clientId}
+                  name="client_id"
+                  readOnly
+                  aria-label={t("ID Client", "Client ID")}
+                  aria-describedby="client_id-hint"
                 />
-                <span id="bpjs_number-error">{fieldErrors.bpjs_number}</span>
+                <small id="client_id-hint">
+                  {t(
+                    "Dibuat oleh server dari akun Anda dan tidak dapat diubah.",
+                    "Created by the server from your account and cannot be changed.",
+                  )}
+                </small>
               </Field>
             </>
           )}
           {step === 2 && (
             <>
-              <Field label="Provider">
+              <Field label={t("Rumah sakit", "Hospital")}>
                 <input
                   required
                   list="providers"
@@ -358,17 +385,42 @@ export function ClaimForm() {
                   ))}
                 </datalist>
               </Field>
-              <Field label={t("Kategori klaim", "Claim category")}>
+              <Field label={t("Penyakit", "Disease")}>
+                <input
+                  required
+                  maxLength={255}
+                  value={data.disease_name}
+                  name="disease_name"
+                  aria-label={t("Penyakit", "Disease")}
+                  aria-describedby="disease_name-error disease_name-hint"
+                  onChange={(e) => change("disease_name", e.target.value)}
+                />
+                <span id="disease_name-error">{fieldErrors.disease_name}</span>
+                <small id="disease_name-hint">
+                  {t(
+                    "Nama penyakit atau diagnosis yang tercantum pada dokumen.",
+                    "The disease or diagnosis stated in the documents.",
+                  )}
+                </small>
+              </Field>
+              <Field label={t("Jenis layanan", "Service type")}>
                 <input
                   required
                   list="categories"
                   maxLength={255}
                   value={data.type}
                   name="type"
-                  aria-describedby="type-error"
+                  aria-label={t("Jenis layanan", "Service type")}
+                  aria-describedby="type-error type-hint"
                   onChange={(e) => change("type", e.target.value)}
                 />
                 <span id="type-error">{fieldErrors.type}</span>
+                <small id="type-hint">
+                  {t(
+                    "Kategori layanan lama tetap disimpan terpisah dari penyakit.",
+                    "The legacy service category is kept separate from the disease.",
+                  )}
+                </small>
                 <datalist id="categories">
                   {catalog.data?.categories.map((p) => (
                     <option key={p.id} value={p.name} />
@@ -395,18 +447,39 @@ export function ClaimForm() {
                 <span id="service_date-error">{fieldErrors.service_date}</span>
               </Field>
               <Field label={t("Nominal klaim (IDR)", "Claim amount (IDR)")}>
-                <input
-                  type="number"
+                <MoneyInput
                   required
-                  min=".01"
-                  step=".01"
                   max={catalog.data?.max_amount || 99999999.99}
                   value={data.amount}
                   name="amount"
+                  aria-label={t("Nominal klaim (IDR)", "Claim amount (IDR)")}
                   aria-describedby="amount-error"
-                  onChange={(e) => change("amount", e.target.value)}
+                  invalidMessage={t(
+                    "Nominal harus lebih dari 0 dan tidak melebihi batas.",
+                    "Amount must be greater than zero and within the limit.",
+                  )}
+                  onChange={(value) => change("amount", value)}
                 />
                 <span id="amount-error">{fieldErrors.amount}</span>
+                <small>
+                  {t(
+                    "Gunakan titik sebagai pemisah ribuan; koma untuk sen.",
+                    "Use dots as thousands separators; a comma for cents.",
+                  )}
+                </small>
+              </Field>
+              <Field label={t("Deskripsi", "Description")}>
+                <textarea
+                  name="description"
+                  rows={4}
+                  maxLength={4000}
+                  value={data.description}
+                  placeholder={t(
+                    "Jelaskan keluhan, tindakan, atau konteks klaim.",
+                    "Describe the symptoms, treatment, or claim context.",
+                  )}
+                  onChange={(e) => change("description", e.target.value)}
+                />
               </Field>
             </>
           )}
@@ -444,6 +517,10 @@ export function ClaimForm() {
           {step === 4 && (
             <>
               <dl>
+                <div>
+                  <dt>{t("ID Client", "Client ID")}</dt>
+                  <dd>{clientId || "—"}</dd>
+                </div>
                 {Object.entries(data).map(([key, value]) => (
                   <div key={key}>
                     <dt>
@@ -451,20 +528,23 @@ export function ClaimForm() {
                         (
                           {
                             client_name: t("Pasien", "Patient"),
-                            provider_name: "Provider",
-                            type: t("Kategori", "Category"),
+                            provider_name: t("Rumah sakit", "Hospital"),
+                            type: t("Jenis layanan", "Service type"),
+                            disease_name: t("Penyakit", "Disease"),
+                            description: t("Deskripsi", "Description"),
                             amount: t("Nominal", "Amount"),
-                            bpjs_number: "BPJS",
                             patient_date_of_birth: t(
                               "Tanggal lahir",
-                              "Birth date",
+                              "Date of birth",
                             ),
                             service_date: t("Tanggal layanan", "Service date"),
                           } as Record<string, string>
                         )[key]
                       }
                     </dt>
-                    <dd>{key === "amount" ? rupiah(value) : value || "—"}</dd>
+                    <dd className={key === "description" ? "pre-wrap" : ""}>
+                      {key === "amount" ? rupiah(value) : value || "—"}
+                    </dd>
                   </div>
                 ))}
               </dl>

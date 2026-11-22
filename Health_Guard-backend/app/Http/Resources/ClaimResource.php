@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,7 +12,10 @@ class ClaimResource extends JsonResource
     {
         return [
             'id' => $this->id, 'claim_id' => $this->claim_id, 'user_id' => $this->user_id,
-            'client_name' => $this->client_name, 'type' => $this->type, 'provider_name' => $this->provider_name,
+            'client_id' => User::clientIdFor($this->user_id),
+            'client_name' => $this->client_name, 'type' => $this->type,
+            'disease_name' => $this->disease_name, 'description' => $this->description,
+            'provider_name' => $this->provider_name,
             'amount' => $this->amount, 'approved_amount' => $this->approved_amount,
             'status' => $this->status->value, 'notes' => $this->notes, 'bpjs_number' => $this->bpjs_number,
             'patient_date_of_birth' => $this->patient_date_of_birth?->format('Y-m-d'),

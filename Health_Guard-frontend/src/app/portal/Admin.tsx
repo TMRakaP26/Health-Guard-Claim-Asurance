@@ -132,7 +132,7 @@ export function Admin() {
         )}
       </section>
       <section className="panel">
-        <h2>{t("Provider & aturan kategori", "Providers & category rules")}</h2>
+        <h2>{t("Rumah sakit & aturan layanan", "Hospitals & service rules")}</h2>
         <Field label={t("Jenis katalog", "Catalog type")}>
           <select
             value={kind}
@@ -141,8 +141,10 @@ export function Admin() {
               setEdit(undefined);
             }}
           >
-            <option value="providers">Provider</option>
-            <option value="categories">{t("Kategori", "Category")}</option>
+            <option value="providers">{t("Rumah sakit", "Hospital")}</option>
+            <option value="categories">
+              {t("Kategori layanan", "Service category")}
+            </option>
           </select>
         </Field>
         <Feedback {...catalog} retry={catalog.reload} />
@@ -326,6 +328,7 @@ interface AnalyticsData {
   average_decision_hours: number | null;
   by_status: Group[];
   by_provider: Group[];
+  by_disease: Group[];
   by_type: Group[];
 }
 export function Analytics() {
@@ -354,7 +357,12 @@ export function Analytics() {
               "",
             ],
           ];
-          for (const key of ["by_status", "by_provider", "by_type"] as const)
+          for (const key of [
+            "by_status",
+            "by_provider",
+            "by_disease",
+            "by_type",
+          ] as const)
             for (const group of query.data[key])
               rows.push([key, group.label, group.count, group.amount]);
           const csv = rows
@@ -415,14 +423,16 @@ export function Analytics() {
               <strong>{query.data.average_decision_hours ?? "—"}</strong>
             </article>
           </section>
-          {(["by_status", "by_provider", "by_type"] as const).map((key) => (
+          {(["by_status", "by_provider", "by_disease", "by_type"] as const).map(
+            (key) => (
             <section className="panel" key={key}>
               <h2>
                 {
                   {
                     by_status: "Status",
-                    by_provider: "Provider",
-                    by_type: t("Kategori", "Category"),
+                    by_provider: t("Rumah sakit", "Hospital"),
+                    by_disease: t("Penyakit", "Disease"),
+                    by_type: t("Jenis layanan", "Service type"),
                   }[key]
                 }
               </h2>

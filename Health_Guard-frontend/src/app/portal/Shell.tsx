@@ -135,20 +135,6 @@ export function Shell() {
           <small>{user.role}</small>
         </p>
         <div className="desktop-navigation">{navigation}</div>
-        <label className="field">
-          <span>{t("Bahasa", "Language")}</span>
-          <select
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as "id" | "en")}
-          >
-            <option value="id">Indonesia</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <button disabled={action.busy} onClick={() => void action.run(logout)}>
-          {t("Keluar", "Sign out")}
-        </button>
-        <Feedback error={action.error} />
       </aside>
       {menuOpen && (
         <Dialog label={t("Menu navigasi", "Navigation menu")} onClose={() => setMenuOpen(false)}>
@@ -161,6 +147,34 @@ export function Shell() {
         </Dialog>
       )}
       <main id="main" className="main">
+        <header className="topbar">
+          <div
+            className="locale-switch"
+            role="group"
+            aria-label={t("Pilih bahasa", "Choose language")}
+          >
+            <button
+              type="button"
+              aria-pressed={locale === "id"}
+              className={locale === "id" ? "active" : ""}
+              onClick={() => setLocale("id")}
+            >
+              <span aria-hidden="true">🇮🇩</span> ID
+            </button>
+            <button
+              type="button"
+              aria-pressed={locale === "en"}
+              className={locale === "en" ? "active" : ""}
+              onClick={() => setLocale("en")}
+            >
+              <span aria-hidden="true">🇬🇧</span> EN
+            </button>
+          </div>
+          <button disabled={action.busy} onClick={() => void action.run(logout)}>
+            {t("Keluar", "Sign out")}
+          </button>
+        </header>
+        <Feedback error={action.error} />
         <Outlet />
       </main>
     </div>
@@ -245,8 +259,8 @@ export function Guide() {
           </li>
           <li>
             {t(
-              "Pantau status, histori, dan pesan pada detail klaim.",
-              "Follow status, history, and messages in claim details.",
+              "Pantau status, histori, dan chat pada detail klaim.",
+              "Follow status, history, and chat in claim details.",
             )}
           </li>
           <li>
@@ -257,8 +271,8 @@ export function Guide() {
           </li>
           <li>
             {t(
-              "Pembayaran mencatat referensi reimbursement dari pengelola.",
-              "Payment records show reimbursement references recorded by the administrator.",
+              "Catatan pembayaran menampilkan referensi pembayaran dari pengelola.",
+              "Payment records show payment references recorded by the administrator.",
             )}
           </li>
         </ol>

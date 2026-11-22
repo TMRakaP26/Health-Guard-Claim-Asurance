@@ -80,13 +80,14 @@ test("keyboard client submission and analyst decision with native dialog focus",
     page.getByRole("heading", { name: "Langkah 2 dari 4: Layanan" }),
   ).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Provider", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Rumah sakit", { exact: true })).toBeFocused();
   await enter(
     page,
-    page.getByLabel("Provider", { exact: true }),
+    page.getByLabel("Rumah sakit", { exact: true }),
     "Keyboard hospital",
   );
-  await enter(page, page.getByLabel("Kategori klaim"), "Outpatient");
+  await enter(page, page.getByLabel("Penyakit"), "Flu");
+  await enter(page, page.getByLabel("Jenis layanan"), "Outpatient");
   await enter(page, page.getByLabel("Nominal klaim (IDR)"), "100");
   await activate(
     page,
@@ -117,7 +118,7 @@ test("keyboard client submission and analyst decision with native dialog focus",
     page.getByRole("heading", { name: "Histori klaim" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Halaman percakapan" }),
+    page.getByRole("navigation", { name: "Halaman chat" }),
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "Halaman histori klaim" }),

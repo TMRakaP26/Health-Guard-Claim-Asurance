@@ -7,7 +7,12 @@ import { ClaimList } from "../src/app/portal/ClaimList";
 import { ClaimDetail } from "../src/app/portal/ClaimDetail";
 import { ClaimForm } from "../src/app/portal/ClaimForm";
 import { LocaleProvider } from "../src/app/portal/locale";
-import { validateFile, rupiah } from "../src/app/portal/shared";
+import {
+  formatAmount,
+  normalizeAmount,
+  rupiah,
+  validateFile,
+} from "../src/app/portal/shared";
 vi.mock("../src/app/api/client", () => ({
   default: {
     get: vi.fn(),
@@ -148,8 +153,9 @@ async function prepareClaim(files: File[] = []) {
   vi.mocked(api.request).mockResolvedValue({ data: claim });
   mount(<ClaimForm />, "/claims/new");
   await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
-  await userEvent.type(screen.getByLabelText("Provider"), "Hospital");
-  await userEvent.type(screen.getByLabelText("Kategori klaim"), "Outpatient");
+  await userEvent.type(screen.getByLabelText("Rumah sakit"), "Hospital");
+  await userEvent.type(screen.getByLabelText("Penyakit"), "Flu");
+  await userEvent.type(screen.getByLabelText("Jenis layanan"), "Outpatient");
   await userEvent.type(screen.getByLabelText("Nominal klaim (IDR)"), "500");
   await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
   if (files.length)
@@ -169,7 +175,7 @@ describe("claim form recovery", () => {
       screen.getByRole("heading", { name: "Langkah 2 dari 4: Layanan" }),
     ).toHaveFocus();
     await userEvent.tab();
-    expect(screen.getByLabelText("Provider")).toHaveFocus();
+    expect(screen.getByLabelText("Rumah sakit")).toHaveFocus();
     await userEvent.click(screen.getByRole("button", { name: "Kembali" }));
     expect(
       screen.getByRole("heading", { name: "Langkah 1 dari 4: Pasien" }),
@@ -332,4 +338,120 @@ it("validates upload boundaries and formats decimal currency", () => {
     validateFile(new File(["%PDF-1.4"], "receipt.pdf")),
   ).not.toThrow();
   expect(rupiah("1234.50")).toContain("1.234,50");
+  expect(rupiah("1000")).toContain("1.000");
+  expect(rupiah("1000")).not.toContain(",00");
+  expect(normalizeAmount("1.500.000")).toBe("1500000");
+  expect(normalizeAmount("100.50")).toBe("100.50");
+  expect(normalizeAmount("1.234,50")).toBe("1234.50");
+  expect(formatAmount("1500000")).toBe("1.500.000");
+  expect(formatAmount("100.50")).toBe("100,50");
+});
+
+describe("client identity, disease and chat UX", () => {
+  it("shows a read-only client ID, local service date and the new claim labels", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        providers: [],
+        categories: [],
+        features: {},
+        max_amount: 99999999.99,
+      },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await waitFor(() =>
+      expect(screen.queryByText("Memuat / Loading…")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText("ID Client")).toHaveValue("CL-000001");
+    expect(screen.getByLabelText("ID Client")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Nama pasien")).toHaveValue("Patient");
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(screen.getByLabelText("Tanggal layanan")).toHaveValue(
+      new Date().toLocaleDateString("en-CA"),
+    );
+    expect(screen.getByLabelText("Rumah sakit")).toBeInTheDocument();
+    expect(screen.getByLabelText("Penyakit")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jenis layanan")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/BPJS/)).not.toBeInTheDocument();
+  });
+
+  it("groups thousands while typing an amount", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        providers: [],
+        categories: [],
+        features: {},
+        max_amount: 99999999.99,
+      },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    const amount = screen.getByLabelText("Nominal klaim (IDR)");
+    await userEvent.type(amount, "1500000");
+    expect(amount).toHaveValue("1.500.000");
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "100.50");
+    expect(amount).toHaveValue("100,50");
+  });
+
+  it("renders hospital, disease, description and modern chat bubbles", async () => {
+    const detailed = {
+      ...claim,
+      client_id: "CL-000001",
+      disease_name: "Flu",
+      description: "Demam tiga hari",
+    };
+    vi.mocked(api.get).mockImplementation(async (url) => ({
+      data: String(url).includes("/messages?")
+        ? {
+            data: [
+              {
+                id: 2,
+                user_id: 2,
+                body: "Please upload the receipt",
+                created_at: "2026-01-02T00:00:00Z",
+                user: { id: 2, name: "Analyst", role: "analyst" },
+                documents: [],
+              },
+              {
+                id: 1,
+                user_id: 1,
+                body: "Here is my claim",
+                created_at: "2026-01-01T00:00:00Z",
+                user: { id: 1, name: "Patient", role: "client" },
+                documents: [],
+              },
+            ],
+            current_page: 1,
+            last_page: 1,
+            total: 2,
+          }
+        : String(url).includes("/history?")
+          ? { data: [], meta: { last_page: 1 } }
+          : String(url).endsWith("/document-requests")
+            ? []
+            : url === "/catalog"
+              ? {
+                  providers: [],
+                  categories: [],
+                  features: { messages: true, payments: false },
+                }
+              : detailed,
+    }));
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    expect(
+      await screen.findByRole("heading", { name: "Chat" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Rumah sakit")).toBeInTheDocument();
+    expect(screen.getByText("Penyakit")).toBeInTheDocument();
+    expect(screen.getByText("Flu")).toBeInTheDocument();
+    expect(screen.getByText("Deskripsi")).toBeInTheDocument();
+    expect(screen.getByText("Demam tiga hari")).toBeInTheDocument();
+    expect(screen.queryByText("BPJS")).not.toBeInTheDocument();
+    const log = screen.getByRole("log", { name: "Pesan chat" });
+    expect(within(log).getByText("Here is my claim")).toBeInTheDocument();
+    expect(within(log).getByText("Please upload the receipt")).toBeInTheDocument();
+    expect(within(log).getByText("Analis")).toBeInTheDocument();
+    expect(log.querySelectorAll(".chat-message.mine")).toHaveLength(1);
+    expect(log.querySelectorAll(".chat-message.theirs")).toHaveLength(1);
+  });
 });

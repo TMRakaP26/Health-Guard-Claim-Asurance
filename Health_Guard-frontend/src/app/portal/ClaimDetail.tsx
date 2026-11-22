@@ -1,5 +1,5 @@
 import { Dialog } from "./Dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 import api from "../api/client";
@@ -60,6 +60,11 @@ export function ClaimDetail() {
     null,
   );
   const [replyId, setReplyId] = useState<number>();
+  const chatEnd = useRef<HTMLDivElement>(null);
+  const orderedMessages = [...(messages.data?.data || [])].reverse();
+  useEffect(() => {
+    if (messages.data) chatEnd.current?.scrollIntoView?.({ block: "nearest" });
+  }, [messages.data]);
   useEffect(
     () => () => {
       if (preview) URL.revokeObjectURL(preview.url);
@@ -74,6 +79,12 @@ export function ClaimDetail() {
   const canWrite =
     !!claim && (user?.id === claim.user_id || user?.id === claim.assigned_to);
   const canDecide = user?.role === "analyst" && user?.id === claim?.assigned_to;
+  const roleLabel = (role?: string) =>
+    role === "analyst"
+      ? t("Analis", "Analyst")
+      : role === "admin"
+        ? "Admin"
+        : t("Klien", "Client");
   function reload() {
     query.reload();
     history.reload();
@@ -156,16 +167,20 @@ export function ClaimDetail() {
               <dl>
                 <dt>{t("Pasien", "Patient")}</dt>
                 <dd>{claim.client_name}</dd>
-                <dt>Provider</dt>
+                <dt>{t("ID Client", "Client ID")}</dt>
+                <dd>{claim.client_id || "—"}</dd>
+                <dt>{t("Rumah sakit", "Hospital")}</dt>
                 <dd>{claim.provider_name}</dd>
-                <dt>{t("Kategori", "Category")}</dt>
+                <dt>{t("Penyakit", "Disease")}</dt>
+                <dd>{claim.disease_name || "—"}</dd>
+                <dt>{t("Jenis layanan", "Service type")}</dt>
                 <dd>{claim.type}</dd>
                 <dt>{t("Tanggal lahir", "Date of birth")}</dt>
                 <dd>{claim.patient_date_of_birth || "—"}</dd>
-                <dt>BPJS</dt>
-                <dd>{claim.bpjs_number || "—"}</dd>
                 <dt>{t("Tanggal layanan", "Service date")}</dt>
                 <dd>{claim.service_date || "—"}</dd>
+                <dt>{t("Deskripsi", "Description")}</dt>
+                <dd className="pre-wrap">{claim.description || "—"}</dd>
                 <dt>{t("Diajukan", "Submitted")}</dt>
                 <dd>{date(claim.date_submitted)}</dd>
                 <dt>{t("Nominal", "Amount")}</dt>
@@ -181,12 +196,25 @@ export function ClaimDetail() {
                 <dt>SLA</dt>
                 <dd>{date(claim.sla_due_at)}</dd>
               </dl>
-              {claim.notes && <blockquote>{claim.notes}</blockquote>}
+              {!claim.disease_name && (
+                <p className="hint">
+                  {t(
+                    "Klaim lama ini belum memiliki data penyakit. Jenis layanan ditampilkan terpisah.",
+                    "This legacy claim has no disease data. The service type is shown separately.",
+                  )}
+                </p>
+              )}
+              {claim.notes && (
+                <>
+                  <h3>{t("Catatan analis", "Analyst notes")}</h3>
+                  <blockquote>{claim.notes}</blockquote>
+                </>
+              )}
               {catalog.data?.categories
                 .filter((c) => c.name === claim.type)
                 .map((c) => (
                   <aside key={c.id}>
-                    <h3>{t("Aturan kategori", "Category rules")}</h3>
+                    <h3>{t("Aturan jenis layanan", "Service type rules")}</h3>
                     <p>
                       {c.diagnosis_code || "—"} ·{" "}
                       {c.coverage_limit ? rupiah(c.coverage_limit) : "—"}
@@ -439,22 +467,56 @@ export function ClaimDetail() {
             </Dialog>
           )}
           {catalog.data?.features.messages && (
-            <section className="panel">
-              <h2>{t("Percakapan", "Conversation")}</h2>
+            <section className="panel chat-panel">
+              <h2>{t("Chat", "Chat")}</h2>
               <Feedback {...messages} retry={messages.reload} />
-              {messages.data?.data.map((m) => (
-                <article className="message" key={m.id}>
-                  <strong>
-                    {m.user?.name || t("Akun dihapus", "Deleted account")}
-                  </strong>
-                  <small>{date(m.created_at)}</small>
-                  <p>{m.body}</p>
-                  {documents(m.documents)}
-                </article>
-              ))}
+              {messages.data?.data.length === 0 && (
+                <p>
+                  {t(
+                    "Belum ada pesan. Mulai chat dengan analis.",
+                    "No messages yet. Start a chat with the analyst.",
+                  )}
+                </p>
+              )}
+              <div
+                className="chat-log"
+                role="log"
+                aria-live="polite"
+                aria-label={t("Pesan chat", "Chat messages")}
+              >
+                {orderedMessages.map((m) => {
+                  const mine = m.user?.id === user?.id;
+                  return (
+                    <article
+                      className={"chat-message " + (mine ? "mine" : "theirs")}
+                      key={m.id}
+                    >
+                      <div className="chat-bubble">
+                        <header>
+                          <strong>
+                            {m.user?.name ||
+                              t("Akun dihapus", "Deleted account")}
+                          </strong>
+                          {m.user?.role && (
+                            <span className="chat-role">
+                              {roleLabel(m.user.role)}
+                            </span>
+                          )}
+                          <time dateTime={m.created_at}>
+                            {date(m.created_at)}
+                          </time>
+                        </header>
+                        <p>{m.body}</p>
+                        {documents(m.documents)}
+                      </div>
+                    </article>
+                  );
+                })}
+                <div ref={chatEnd} />
+              </div>
               {messages.data && (
                 <Pager
-                  label={t("Halaman percakapan", "Conversation pages")}
+                  label={t("Halaman chat", "Chat pages")}
                   page={messagePage}
                   last={messages.data.last_page}
                   onChange={setMessagePage}
@@ -462,6 +524,7 @@ export function ClaimDetail() {
               )}
               {canWrite && (
                 <form
+                  className="chat-composer"
                   onSubmit={(e) => {
                     const body = formValues(e);
                     const form = e.currentTarget;
@@ -482,10 +545,24 @@ export function ClaimDetail() {
                       "Message (upload attachments after sending)",
                     )}
                   >
-                    <textarea name="body" required maxLength={4000} />
+                    <textarea
+                      name="body"
+                      required
+                      maxLength={4000}
+                      rows={3}
+                      placeholder={t("Tulis pesan…", "Write a message…")}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                    />
                   </Field>
                   <button disabled={action.busy}>
-                    {t("Kirim pesan", "Send message")}
+                    {action.busy
+                      ? t("Mengirim…", "Sending…")
+                      : t("Kirim", "Send")}
                   </button>
                 </form>
               )}
@@ -493,7 +570,7 @@ export function ClaimDetail() {
           )}
           {catalog.data?.features.payments && (
             <section className="panel">
-              <h2>{t("Catatan reimbursement", "Reimbursement record")}</h2>
+              <h2>{t("Catatan pembayaran", "Payment record")}</h2>
               <Feedback {...payment} retry={payment.reload} />
               {payment.data?.data ? (
                 <p>

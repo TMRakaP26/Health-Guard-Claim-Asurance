@@ -8,6 +8,7 @@ use App\Http\Requests\ClaimListRequest;
 use App\Http\Resources\ClaimHistoryResource;
 use App\Http\Resources\ClaimResource;
 use App\Models\Claim;
+use App\Models\User;
 use App\Services\ClaimService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -40,7 +41,12 @@ class ClaimController extends Controller
         }
         if ($request->filled('q')) {
             $term = '%'.addcslashes($request->input('q'), '%_\\').'%';
-            $query->where(fn (Builder $q) => $q->where('claim_id', 'like', $term)->orWhere('client_name', 'like', $term)->orWhere('provider_name', 'like', $term)->orWhere('type', 'like', $term));
+            $query->where(fn (Builder $q) => $q->where('claim_id', 'like', $term)
+                ->orWhere('client_name', 'like', $term)
+                ->orWhere('provider_name', 'like', $term)
+                ->orWhere('disease_name', 'like', $term)
+                ->orWhere('description', 'like', $term)
+                ->orWhere('type', 'like', $term));
         }
         if ($request->filled('date_from')) {
             $query->whereDate('date_submitted', '>=', $request->input('date_from'));
@@ -131,10 +137,10 @@ class ClaimController extends Controller
         return response()->streamDownload(function () use ($query) {
             $stream = fopen('php://output', 'w');
             fwrite($stream, "\xEF\xBB\xBF");
-            fputcsv($stream, ['Claim ID', 'Client', 'Submitted', 'Type', 'Provider', 'Amount (IDR)', 'Approved (IDR)', 'Analyst', 'Status'], escape: '');
+            fputcsv($stream, ['Claim ID', 'Client ID', 'Client', 'Submitted', 'Service type', 'Disease', 'Hospital', 'Description', 'Amount (IDR)', 'Approved (IDR)', 'Analyst', 'Status'], escape: '');
             foreach ($query->lazy(200) as $claim) {
-                $row = [$claim->claim_id, $claim->client_name, $claim->date_submitted->toISOString(), $claim->type,
-                    $claim->provider_name, $claim->amount, $claim->approved_amount, $claim->assignedAnalyst?->name, $claim->status->value];
+                $row = [$claim->claim_id, User::clientIdFor($claim->user_id), $claim->client_name, $claim->date_submitted->toISOString(), $claim->type,
+                    $claim->disease_name, $claim->provider_name, $claim->description, $claim->amount, $claim->approved_amount, $claim->assignedAnalyst?->name, $claim->status->value];
                 $row = array_map(fn ($value) => preg_match('/^[=+@\-\t\r\n]/', (string) $value) ? "'".$value : $value, $row);
                 fputcsv($stream, $row, escape: '');
             }
