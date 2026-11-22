@@ -18,6 +18,26 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Bukti lokal dan CI
 
+### Verifikasi lanjutan — 22 November 2026
+
+- Meninjau README, ADR, implementasi portal, kriteria tiga tiket tersisa, dan peta tes.
+  Semua tiket implementasi sebelumnya tetap selesai; TEST-05, UX-10 dan BL-12 tetap
+  parsial sampai observasi manual tersedia.
+- Tombol pagination kini memiliki nama aksesibel Halaman sebelumnya/Halaman berikutnya
+  atau Previous page/Next page. Tes daftar klaim menggunakan nama tersebut; tes browser
+  admin memeriksa label dalam kedua bahasa dan tombol sebelumnya yang nonaktif di halaman awal.
+- Checklist QA dilengkapi langkah keadaan kosong, loading lambat, offline/error/retry,
+  pencegahan aksi ganda, upload terputus, dan sesi kedaluwarsa.
+- Backend SQLite: **167 passed, 2 skipped, 859 asersi**; Pint lulus, exit 0.
+- Frontend: **33 Vitest tests**, **5 cookie-security tests**, production build,
+  typecheck dan lint lulus. Typecheck/lint dijalankan kembali setelah perubahan kode/tes.
+- Revisi kode frontend setelah perbaikan: `97b662bd0a3116f3e2e51b40df1041b9c1a70623`.
+  Proses auto-sync Git yang sudah aktif membuat commit selama sesi; agen tidak menjalankan
+  commit/push. Perubahan sesudah revisi ini hanya dokumentasi.
+- Tidak tersedia tool kendali desktop interaktif; NVDA tidak ditemukan di lokasi standar.
+  QA manual, native picker, zoom browser 200%, dan audit screen reader belum dilaksanakan.
+  MySQL/Compose dan CI remote tidak diperiksa ulang; database deployment tidak diubah.
+
 ### Lanjutan penutupan P1/P3 — 21 November 2026
 
 - Pengguna menyatakan belum bisa melakukan audit manual. Sesi agen tidak menyediakan alat

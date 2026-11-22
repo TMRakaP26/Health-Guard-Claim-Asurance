@@ -1,6 +1,6 @@
 # Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
-Last updated: 2026-11-21 (implementation audit: 61/64 done, 3 in progress; evidence is recorded
+Last updated: 2026-11-22 (implementation audit: 61/64 done, 3 in progress; evidence is recorded
 in `docs/IMPLEMENTATION.md`).
 
 **Audience:** implementation agents working on this repository.
@@ -16,6 +16,13 @@ making changes.
 Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - `[!]` blocked
 
 ## Progress summary
+
+22 November follow-up: pagination controls now expose descriptive Indonesian/English
+accessible names, with component and browser regression coverage. The manual QA checklist
+now explicitly includes empty/loading/offline/slow-network states and expired sessions.
+Current verification results are recorded in `docs/IMPLEMENTATION.md`; the manual acceptance
+gates below remain open. This session has no interactive desktop-control tool, and NVDA
+was not found in its standard installation locations.
 
 | Phase | Scope | Done | Total | Status | Remaining acceptance gate |
 | --- | --- | --- | --- | --- | --- |
