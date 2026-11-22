@@ -5,6 +5,7 @@ backups/
 artifacts/
 playwright-report/
 test-results/
+test-results-final/
 .cache/
 .npm-cache/
 .terraform/
