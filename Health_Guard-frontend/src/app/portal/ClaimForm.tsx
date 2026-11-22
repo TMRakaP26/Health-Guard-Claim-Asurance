@@ -269,7 +269,7 @@ export function ClaimForm() {
           setValidation(
             invalid.map(
               (input) =>
-                `${input.closest("label")?.textContent?.trim() || "Field"}: ${input.validationMessage}`,
+                `${input.getAttribute("aria-label") || input.labels?.[0]?.querySelector(":scope > span")?.textContent?.trim() || t("Kolom", "Field")}: ${input.validationMessage}`,
             ),
           );
           for (const input of e.currentTarget.querySelectorAll<HTMLInputElement>(
@@ -329,7 +329,10 @@ export function ClaimForm() {
                   max={today}
                   value={data.patient_date_of_birth}
                   name="patient_date_of_birth"
-                  aria-label={t("Tanggal lahir pasien", "Patient date of birth")}
+                  aria-label={t(
+                    "Tanggal lahir pasien",
+                    "Patient date of birth",
+                  )}
                   aria-describedby="patient_date_of_birth-error patient_date_of_birth-hint"
                   onChange={(e) =>
                     change("patient_date_of_birth", e.target.value)

@@ -80,11 +80,20 @@ test("form exposes localized labels, invalid fields, current step and focus at m
     });
     await patient.fill("");
     await page
-      .getByRole("button", { name: english ? "Continue" : "Lanjut", exact: true })
+      .getByRole("button", {
+        name: english ? "Continue" : "Lanjut",
+        exact: true,
+      })
       .click();
     await expect(patient).toBeFocused();
     await expect(patient).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByRole("alert")).toBeVisible();
+    const validationMessage = await patient.evaluate(
+      (input: HTMLInputElement) => input.validationMessage,
+    );
+    await expect(page.getByRole("alert").getByRole("listitem")).toHaveText(
+      `${english ? "Patient name" : "Nama pasien"}: ${validationMessage}`,
+    );
     await expect(page.locator('[aria-current="step"]')).toHaveCount(1);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
