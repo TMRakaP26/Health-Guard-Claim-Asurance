@@ -1,6 +1,12 @@
-# Verification and manual QA
+# Verification and QA
 
 ## Current acceptance scope — 22 November 2026
+
+**Final result:** all 9 browser tests passed (8.6 minutes). The final validation-summary
+fix passed both targeted QA tests again (1.9 minutes), plus typecheck/lint, 33 component tests
+and production build. Backend: 167 passed, 2 database-specific skips, 859 assertions; Pint
+passed. Cookie security: 5 passed. TEST-05, UX-10 and BL-12 are complete under the revised
+automated scope. Detailed revision/run evidence is in IMPLEMENTATION.md.
 
 The user requested that the agent perform QA without manual testing. The current gate for
 TEST-05, UX-10 and BL-12 is the automated suite and coverage map in TEST-COVERAGE.md.

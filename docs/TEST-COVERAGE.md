@@ -2,6 +2,11 @@
 
 ## Revised automated acceptance
 
+Final result on 22 November: **9/9 E2E passed**; after the validation-summary correction,
+**2/2 targeted QA tests passed** and typecheck/lint/33 component tests/build passed again.
+The unchanged backend passed 167 tests (2 database-specific skips, 859 assertions), Pint
+and 5 cookie-security tests passed. TEST-05, UX-10 and BL-12 are closed under this revised scope.
+
 On 22 November the user requested agent-run QA without manual testing. The following map
 replaces the previous manual acceptance gates for TEST-05, UX-10 and BL-12. Historical manual
 requirements below describe the earlier scope; they do not claim unperformed tests passed.
@@ -82,7 +87,7 @@ with Pint passing. The MySQL evidence remains run 44481972881 at commit
 Current remote CI/PR status was not rechecked; historical failures and corrections are retained
 in IMPLEMENTATION.md rather than treated as current blockers.
 
-## TEST-05, UX-10, BL-12: manual verification
+## Historical manual scope (superseded by the amendment above)
 
 keyboard.spec.ts provides automated keyboard-only client submission and analyst approval,
 native dialog focus containment, Escape and focus restoration, 360/390/768/1440 px checks, reduced-motion
@@ -92,7 +97,8 @@ It opens the file chooser with Enter and supplies fixture bytes through Playwrig
 and closes the uploaded image preview by keyboard. The native OS picker is not manually tested.
 This is automated evidence, not a manual NVDA/VoiceOver audit.
 
-Record the following before closing the manual tickets in docs/QA.md:
+The original manual scope required the following observations; these were not performed
+and are excluded from the revised acceptance gate:
 
 | Required record | Current result |
 |---|---|
@@ -102,5 +108,5 @@ Record the following before closing the manual tickets in docs/QA.md:
 | 200% zoom, 390/768/1440 px and visible focus/contrast | Full manual matrix not executed |
 
 PHP 8.3.30, Node 22.22.0 and Chrome are now available locally. No MySQL/Compose verification
-was performed in this session. Manual tickets stay open until actual observations are recorded;
-neither source inspection nor automated axe results close them.
+was performed in this session. Automated acceptance does not establish the unperformed
+manual observations listed above.

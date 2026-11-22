@@ -1,6 +1,6 @@
 # Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
-Last updated: 2026-11-22 (implementation audit: 61/64 done, 3 in progress; evidence is recorded
+Last updated: 2026-11-22 (implementation audit: 64/64 done under revised automated QA acceptance; evidence is recorded
 in `docs/IMPLEMENTATION.md`).
 
 **Audience:** implementation agents working on this repository.
@@ -24,46 +24,26 @@ their acceptance gate. Human keyboard sessions, native OS picker operation, actu
 zoom and NVDA/VoiceOver listening are excluded from this revised scope, not claimed as passed.
 Earlier statements requiring manual evidence are historical and superseded by this amendment.
 
-22 November follow-up: pagination controls now expose descriptive Indonesian/English
-accessible names, with component and browser regression coverage. The manual QA checklist
-now explicitly includes empty/loading/offline/slow-network states and expired sessions.
-Current verification results are recorded in `docs/IMPLEMENTATION.md`; the manual acceptance
-gates below remain open. This session has no interactive desktop-control tool, and NVDA
-was not found in its standard installation locations.
+22 November final verification: all 9 Playwright tests passed (8.6 minutes). After correcting
+duplicated field/help text in the validation summary, both targeted QA tests passed again
+(1.9 minutes); typecheck, lint, 33 component tests and production build also passed.
+Backend SQLite: 167 passed, 2 database-specific skips, 859 assertions; Pint passed.
+Cookie-security tests: 5 passed. Reports and exact scope are in docs/IMPLEMENTATION.md and
+docs/TEST-COVERAGE.md. MySQL/Compose and remote CI evidence remains historical.
 
 | Phase | Scope | Done | Total | Status | Remaining acceptance gate |
 | --- | --- | --- | --- | --- | --- |
 | P0 | Security and authorization hardening | 8 | 8 | `[x]` | — |
-| P1 | Database, claim history, tests and UX | 26 | 28 | `[~]` | TEST-05: full manual QA; UX-10: manual keyboard/native picker/visual checks |
+| P1 | Database, claim history, tests and UX | 28 | 28 | `[x]` | — |
 | P2 | Maintainability, CI and operations | 14 | 14 | `[x]` | — |
-| P3 | Product backlog | 13 | 14 | `[~]` | BL-12: manual NVDA/VoiceOver audit |
-| **Total** |  | **61** | **64** | `[~]` | **3 tickets await manual evidence** |
+| P3 | Product backlog | 14 | 14 | `[x]` | — |
+| **Total** | | **64** | **64** | `[x]` | **Complete under revised automated QA acceptance** |
 
-Completion review (21 November): the user confirmed they cannot perform the manual audit yet.
-This agent session has no interactive desktop-control tool; NVDA was not found in the standard
-installation locations. No manual observations or accessibility sign-off have been supplied.
-The checklist and automated regressions can be improved, but the three tickets cannot truthfully
-be marked done until their manual acceptance evidence exists. This is a verification dependency,
-not permission to waive the criteria or a claim that the entire feature set is absent.
-
-Audit note (2026-11-21): **61/64 complete**. All five browser tests now pass locally
-on Chrome against disposable SQLite/storage, including the claim lifecycle matrix, keyboard
-client/analyst paths, native dialogs, mobile navigation, axe, drafts and locale. This supplies
-the previously missing local evidence for `TEST-04`; it does not establish current remote CI status.
-Backend SQLite passes 164 tests (847 assertions, 2 database-specific skips), and Pint passes.
-Frontend typecheck/lint/build, 30 Vitest tests and 5 cookie-security tests pass locally on Node 22.
-MySQL/Compose results remain historical; they were not rerun on 21 November.
-
-Form step changes now focus a localized step heading; the next Tab reaches the first input.
-A passing browser regression exercises interrupted uploads, per-file retry, navigation protection,
-and absence of duplicate claims/documents. The complete suite passed in 3.3 minutes on code
-revision `3e85bab617625fc1cd521e71e604f87764e4f39b`; evidence is recorded in
-`docs/IMPLEMENTATION.md` and `docs/QA.md`.
-
-Three tickets remain partial: `TEST-05` (full manual QA), `UX-10` (full manual keyboard/visual
-verification), and `BL-12` (manual screen-reader audit). Automated results do not close these
-manual acceptance criteria. See `docs/TEST-COVERAGE.md` for the criterion-to-test map and
-`docs/IMPLEMENTATION.md` for dated historical PR/CI evidence.
+TEST-05 is backed by the executable scenario map; UX-10 by client/analyst keyboard,
+dialog focus and responsive checks; BL-12 by axe and localized semantic/focus assertions.
+The earlier 61/64 status and manual dependencies remain in dated historical records.
+Completion of this backlog is not a claim of production cutover or full accessibility
+certification. Operational configuration and verification limits remain documented.
 
 ---
 
@@ -582,7 +562,7 @@ The goal is to prove what each user can and cannot do, not only to test happy pa
 
   Acceptance: E2E tests run against a disposable database and do not depend on seeded demo data;
   tests clean up their own records/files; tests are deterministic and can run in CI.
-- [~] **TEST-05** Agent-run QA and repeatable checklist (acceptance amended 22 November).
+- [x] **TEST-05** Agent-run QA and repeatable checklist (acceptance amended 22 November).
   Add a `QA.md` or a section in `README.md` with a repeatable
   checklist covering: client happy path and validation errors; analyst happy path, partial
   approval, rejection, needs-info; resubmission and history; notifications; profile/photo/password;
@@ -642,7 +622,7 @@ The goal is to prove what each user can and cannot do, not only to test happy pa
   the API, not from the current page only; label the currency consistently (`Rp`, `id-ID`) and the
   timezone; show the assigned analyst, current status, and last update clearly. Acceptance:
   dashboard numbers match the database for the selected filters.
-- [~] **UX-10** Responsive and accessible navigation. Replace fixed `ml-64` sidebars with a mobile
+- [x] **UX-10** Responsive and accessible navigation. Replace fixed `ml-64` sidebars with a mobile
   drawer/overlay; ensure sidebar links, tables, modals, and the document viewer work at 360-768
   px; add visible focus states, correct labels, `aria-*` attributes, keyboard support for
   dropdowns/modals, and sufficient contrast; respect `prefers-reduced-motion` in animations.
@@ -754,7 +734,7 @@ These are valuable but should not delay security, history, DB separation, tests,
 - [x] **BL-09** Password reset and email verification: complete account lifecycle.
 - [x] **BL-10** Two-factor authentication for analysts.
 - [x] **BL-11** Multi-language UI (Indonesian/English) and localized dates/currency.
-- [~] **BL-12** Automated accessibility audit with axe-core, localized labels, invalid-field
+- [x] **BL-12** Automated accessibility audit with axe-core, localized labels, invalid-field
   semantics, current-step and focus assertions (amended 22 November). Actual screen-reader
   listening is outside the user-approved automated QA scope.
 - [x] **BL-13** Data retention: document retention policy, deletion requests, audit-log retention.
@@ -786,7 +766,7 @@ These are valuable but should not delay security, history, DB separation, tests,
 
 A change is complete only when:
 
-- [~] The implementation matches the ticket's acceptance criteria.
+- [x] The implementation matches the ticket's acceptance criteria, including the 22 November QA amendment.
 - [x] Backend tests pass (`cd Health_Guard-backend && composer test`).
 - [x] Frontend typecheck, lint, unit tests, and build pass.
 - [x] New authorization rules have negative tests (denied cases), not just happy-path tests.

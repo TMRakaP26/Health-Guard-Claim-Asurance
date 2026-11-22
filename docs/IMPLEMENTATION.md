@@ -20,6 +20,28 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ### Perubahan kriteria QA — 22 November 2026
 
+**Hasil akhir: 64/64 tiket selesai berdasarkan kriteria QA otomatis yang direvisi.**
+
+- Suite lengkap: **9 Playwright tests passed, 8,6 menit, exit 0**, Chrome dengan SQLite/storage
+  disposable. Meliputi matriks klaim, keyboard, profil/admin, loading/error/retry/empty,
+  pencabutan sesi nyata, semantik ID/EN, upload recovery dan draf/locale.
+- Tinjauan screenshot menemukan ringkasan validasi menggabungkan label dengan pesan error
+  lama dan teks bantuan. `ClaimForm.tsx` kini memakai aria-label atau span label saja.
+  Regresi memeriksa teks ringkasan persis dalam ID/EN, termasuk validasi berulang.
+- Setelah perbaikan tersebut: **2 tes QA terarah lulus, 1,9 menit, exit 0**; typecheck,
+  lint, **33 Vitest tests** dan build produksi lulus lagi. Backend dan keamanan cookie
+  tidak berubah sejak hasil 167 passed/2 skipped/859 asersi, Pint dan 5 tes cookie di bawah.
+- Revisi kode akhir saat verifikasi: `5bfffbdb40125f8370f8c6c488f59f62f4812e54`.
+  Suite lengkap dimulai sebelum perbaikan ringkasan; tes terarah dan cek frontend menguji
+  perbaikan akhir. Perubahan berikutnya hanya dokumentasi.
+- Bukti lokal: `Health_Guard-frontend/playwright-report/index.html`,
+  `test-results/.last-run.json`, dan `test-results-final/.last-run.json` (keduanya passed).
+  Screenshot profil 390 px dan form error EN 360 px juga ditinjau agen.
+  Output verifikasi terarah ditambahkan ke gitignore dan dikeluarkan dari indeks Git
+  setelah sempat ditangkap proses auto-sync; semuanya memakai fixture sintetis disposable.
+- TEST-05, UX-10 dan BL-12 ditutup dengan cakupan dalam TEST-COVERAGE.md, tanpa klaim
+  audit suara screen-reader, native picker atau actual browser zoom.
+
 Pengguna meminta agen menjalankan QA tanpa pengujian manual. Kriteria TEST-05, UX-10 dan
 BL-12 direvisi menjadi backend/component/browser QA, otomasi keyboard, pemeriksaan layout,
 axe dan asersi semantik aksesibilitas. Tabel cakupan tersedia di TEST-COVERAGE.md.
