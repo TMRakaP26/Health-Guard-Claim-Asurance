@@ -18,6 +18,20 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 
 ## Bukti lokal dan CI
 
+### Perubahan kriteria QA — 22 November 2026
+
+Pengguna meminta agen menjalankan QA tanpa pengujian manual. Kriteria TEST-05, UX-10 dan
+BL-12 direvisi menjadi backend/component/browser QA, otomasi keyboard, pemeriksaan layout,
+axe dan asersi semantik aksesibilitas. Tabel cakupan tersedia di TEST-COVERAGE.md.
+Persyaratan manual pada catatan historis di bawah tidak lagi menjadi gate penyelesaian.
+Ini bukan pernyataan bahwa pengumuman NVDA/VoiceOver, native picker atau zoom browser 200%
+sudah diuji. Pemeriksaan otomatis tidak membuktikan kepatuhan aksesibilitas menyeluruh.
+
+Run browser sebelumnya dihentikan setelah interupsi; empat skenario awal lulus, sedangkan
+upload-recovery gagal setelah reload dengan request pemulihan sesi terputus dalam trace.
+Hasil run terputus tidak digunakan untuk penutupan tiket. Suite baru berisi sembilan tes,
+termasuk `qa-states.spec.ts`, dijalankan ulang pada SQLite/storage disposable baru.
+
 ### Verifikasi lanjutan — 22 November 2026
 
 - Meninjau README, ADR, implementasi portal, kriteria tiga tiket tersisa, dan peta tes.
@@ -189,14 +203,17 @@ Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MyS
 - Workflow CI diperluas dengan uji concurrency MySQL, persistensi setelah pembuatan ulang container, validasi backup, dan smoke setelah restore.
 - Tidak ada migrasi/penghapusan data deployment utama dilakukan.
 
-## Verifikasi yang belum boleh dianggap selesai
+## Batas verifikasi operasional
 
-1. Melaksanakan QA manual lengkap (TEST-05) dan verifikasi keyboard/visual manual (UX-10).
-   TEST-04 memiliki bukti seluruh lima tes browser lulus lokal pada 21 November.
-   TEST-02 selesai; warning file_get_contents sudah hilang.
-2. Manual screen-reader audit NVDA/VoiceOver dan penerimaan desain bisnis.
+1. Pengujian manual dan audit suara NVDA/VoiceOver tidak dijalankan; pengguna menggantinya
+   dengan QA otomatis pada 22 November. Hasil terkini dicatat di atas.
+2. Penerimaan desain bisnis dan pengalaman teknologi bantu di dunia nyata tidak disimpulkan
+   dari hasil otomasi.
 3. SMTP eksternal, kebijakan retensi/durasi, data provider/polis nyata, serta pencatatan pembayaran operasional perlu konfigurasi pengelola. Fitur tersedia tetapi default email/retention nonaktif.
 4. Benchmark dan penilaian query pada volume data produksi. Uji contention InnoDB dasar dan ketersediaan indeks sudah lulus, tetapi tidak membuktikan kapasitas produksi.
 5. Cutover data operasional: import dan restore telah diuji memakai fixture sintetis. Rekonsiliasi jumlah record dan file dari backup data nyata tetap perlu dilakukan pada maintenance window sebelum migrasi deployment aktif.
 
-Jangan menandai seluruh Definition of Done sumber sebagai selesai sebelum pemeriksaan manual, kelengkapan matriks pengujian, dan kesiapan operasional di atas dilaksanakan. Bukti CI harus merujuk commit yang diuji; revisi baru tidak mewarisi hasil hijau commit lama. Tidak ada migrasi atau pemulihan yang dijalankan pada database deployment aktif.
+Penyelesaian backlog mengikuti kriteria QA otomatis yang direvisi pengguna; kesiapan deployment
+tetap memerlukan konfigurasi dan verifikasi operasional di atas. Bukti CI harus merujuk commit
+yang diuji; revisi baru tidak mewarisi hasil hijau commit lama. Tidak ada migrasi atau pemulihan
+yang dijalankan pada database deployment aktif.
