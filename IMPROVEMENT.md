@@ -17,6 +17,13 @@ Status legend: `[ ]` pending - `[~]` in progress - `[x]` done (with evidence) - 
 
 ## Progress summary
 
+**Acceptance amendment — 22 November 2026:** the user explicitly requested agent-run QA
+without manual testing. TEST-05, UX-10 and BL-12 therefore use executable backend/component/
+browser checks, keyboard automation, responsive screenshots and axe/semantic assertions as
+their acceptance gate. Human keyboard sessions, native OS picker operation, actual browser
+zoom and NVDA/VoiceOver listening are excluded from this revised scope, not claimed as passed.
+Earlier statements requiring manual evidence are historical and superseded by this amendment.
+
 22 November follow-up: pagination controls now expose descriptive Indonesian/English
 accessible names, with component and browser regression coverage. The manual QA checklist
 now explicitly includes empty/loading/offline/slow-network states and expired sessions.
@@ -575,12 +582,13 @@ The goal is to prove what each user can and cannot do, not only to test happy pa
 
   Acceptance: E2E tests run against a disposable database and do not depend on seeded demo data;
   tests clean up their own records/files; tests are deterministic and can run in CI.
-- [~] **TEST-05** Manual QA script. Add a `QA.md` or a section in `README.md` with a repeatable
+- [~] **TEST-05** Agent-run QA and repeatable checklist (acceptance amended 22 November).
+  Add a `QA.md` or a section in `README.md` with a repeatable
   checklist covering: client happy path and validation errors; analyst happy path, partial
   approval, rejection, needs-info; resubmission and history; notifications; profile/photo/password;
   mobile widths and keyboard navigation; direct URLs and refresh; empty, loading, error, and
-  slow-network states. Acceptance: the checklist is committed and every scenario is manually
-  verified before the phase is marked `[x]`.
+  slow-network states. Acceptance: the checklist and coverage map identify executable
+  backend/component/browser evidence for these scenarios, and the relevant automated suites pass.
 
 ---
 
@@ -638,7 +646,8 @@ The goal is to prove what each user can and cannot do, not only to test happy pa
   drawer/overlay; ensure sidebar links, tables, modals, and the document viewer work at 360-768
   px; add visible focus states, correct labels, `aria-*` attributes, keyboard support for
   dropdowns/modals, and sufficient contrast; respect `prefers-reduced-motion` in animations.
-  Acceptance: keyboard-only navigation completes the client and analyst happy paths.
+  Acceptance (amended 22 November): automated keyboard navigation completes the client and
+  analyst happy paths; responsive overflow, dialog focus and axe checks pass.
 - [x] **UX-11** Consistent formatting and shared components. Centralize status badges, currency
   formatting, date/time formatting, and empty states; use the API's timestamps and convert to the
   user's local timezone in one helper; remove duplicated table markup where practical. Acceptance:
@@ -745,7 +754,9 @@ These are valuable but should not delay security, history, DB separation, tests,
 - [x] **BL-09** Password reset and email verification: complete account lifecycle.
 - [x] **BL-10** Two-factor authentication for analysts.
 - [x] **BL-11** Multi-language UI (Indonesian/English) and localized dates/currency.
-- [~] **BL-12** Accessibility audit with axe-core and manual screen-reader testing.
+- [~] **BL-12** Automated accessibility audit with axe-core, localized labels, invalid-field
+  semantics, current-step and focus assertions (amended 22 November). Actual screen-reader
+  listening is outside the user-approved automated QA scope.
 - [x] **BL-13** Data retention: document retention policy, deletion requests, audit-log retention.
 - [x] **BL-14** Feature flags / environment separation for demo accounts and seed data.
 

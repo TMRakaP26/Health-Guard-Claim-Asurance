@@ -1,5 +1,21 @@
 # Verification and manual QA
 
+## Current acceptance scope — 22 November 2026
+
+The user requested that the agent perform QA without manual testing. The current gate for
+TEST-05, UX-10 and BL-12 is the automated suite and coverage map in TEST-COVERAGE.md.
+The manual procedures below remain optional reference material; unexecuted worksheet rows
+are not release blockers under this revised scope and are not represented as passed.
+Automated checks do not establish NVDA/VoiceOver speech behavior, native OS picker usability,
+actual browser zoom behavior or complete accessibility conformance.
+
+Run `npm run test:e2e` with Chrome (`PLAYWRIGHT_CHANNEL=chrome` on this Windows host), plus
+the backend and frontend commands in README.md. E2E uses disposable SQLite/storage and
+synthetic accounts. `qa-states.spec.ts` adds delayed responses, failed request/retry with
+preserved filters, empty results, real token revocation, and ID/EN form validation semantics
+at 360 px with reduced-motion preference. Keep Playwright's report, failure traces and
+responsive screenshots as local evidence; do not include authentication traces in Git.
+
 Automated: composer test; Pint; TypeScript strict; ESLint; Vitest/RTL; cookie security tests; production build; Playwright + axe. CI includes MySQL8.4, SQLite and isolated Docker smoke. Passing local SQLite tests does not prove MySQL migration/import/restore.
 
 ## Core scenario
