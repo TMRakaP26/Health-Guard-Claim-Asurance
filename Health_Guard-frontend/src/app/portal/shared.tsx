@@ -9,6 +9,7 @@ import {
 import axios from "axios";
 import { toast } from "sonner";
 import api from "../api/client";
+import { useLocale } from "./locale";
 
 export function message(error: unknown): string {
   if (
@@ -122,15 +123,24 @@ export function Pager({
   onChange: (p: number) => void;
   label?: string;
 }) {
+  const { t } = useLocale();
   return (
     <nav className="pager" aria-label={label}>
-      <button disabled={page <= 1} onClick={() => onChange(page - 1)}>
+      <button
+        aria-label={t("Halaman sebelumnya", "Previous page")}
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+      >
         ←
       </button>
       <span>
         {page} / {Math.max(1, last)}
       </span>
-      <button disabled={page >= last} onClick={() => onChange(page + 1)}>
+      <button
+        aria-label={t("Halaman berikutnya", "Next page")}
+        disabled={page >= last}
+        onClick={() => onChange(page + 1)}
+      >
         →
       </button>
     </nav>

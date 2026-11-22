@@ -266,7 +266,9 @@ describe("API-driven claims", () => {
     });
     mount(<ClaimList />);
     expect(await screen.findByText("26")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "→" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Halaman berikutnya" }),
+    );
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/claims?page=2", expect.anything()),
     );
