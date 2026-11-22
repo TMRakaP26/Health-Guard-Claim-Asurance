@@ -80,7 +80,7 @@ test("form exposes localized labels, invalid fields, current step and focus at m
     });
     await patient.fill("");
     await page
-      .getByRole("button", { name: english ? "Next" : "Lanjut", exact: true })
+      .getByRole("button", { name: english ? "Continue" : "Lanjut", exact: true })
       .click();
     await expect(patient).toBeFocused();
     await expect(patient).toHaveAttribute("aria-invalid", "true");
@@ -99,7 +99,7 @@ test("form exposes localized labels, invalid fields, current step and focus at m
     });
     await patient.fill("QA Patient");
   }
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: /Step 2 of 4/ }),
   ).toBeFocused();
