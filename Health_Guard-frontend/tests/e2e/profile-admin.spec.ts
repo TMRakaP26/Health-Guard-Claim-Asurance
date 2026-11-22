@@ -95,6 +95,16 @@ test("admin catalog persists and administration has distinct landmarks", async (
   await expect(
     page.getByRole("navigation", { name: "Halaman pengguna", exact: true }),
   ).toBeVisible();
+  const userPages = page.getByRole("navigation", {
+    name: "Halaman pengguna",
+    exact: true,
+  });
+  await expect(
+    userPages.getByRole("button", { name: "Halaman sebelumnya" }),
+  ).toBeDisabled();
+  await expect(
+    userPages.getByRole("button", { name: "Halaman berikutnya" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("navigation", {
       name: "Halaman permintaan penghapusan",
@@ -114,11 +124,19 @@ test("admin catalog persists and administration has distinct landmarks", async (
       fullPage: true,
     });
   }
-  await page
-    .getByRole("button", { name: "EN", exact: true })
-    .click();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
   await expect(
     page.getByRole("navigation", { name: "User pages", exact: true }),
+  ).toBeVisible();
+  const englishUserPages = page.getByRole("navigation", {
+    name: "User pages",
+    exact: true,
+  });
+  await expect(
+    englishUserPages.getByRole("button", { name: "Previous page" }),
+  ).toBeDisabled();
+  await expect(
+    englishUserPages.getByRole("button", { name: "Next page" }),
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", {

@@ -269,8 +269,7 @@ export function MoneyInput({
       onChange={(event) => {
         const input = event.currentTarget;
         const raw = input.value;
-        const caretAtEnd =
-          (input.selectionStart ?? raw.length) >= raw.length;
+        const caretAtEnd = (input.selectionStart ?? raw.length) >= raw.length;
         const digitsBefore = raw
           .slice(0, input.selectionStart ?? raw.length)
           .replace(/\D/g, "").length;

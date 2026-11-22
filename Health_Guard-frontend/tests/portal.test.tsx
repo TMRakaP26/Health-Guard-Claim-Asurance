@@ -451,7 +451,9 @@ describe("client identity, disease and chat UX", () => {
     expect(screen.queryByText("BPJS")).not.toBeInTheDocument();
     const log = screen.getByRole("log", { name: "Pesan chat" });
     expect(within(log).getByText("Here is my claim")).toBeInTheDocument();
-    expect(within(log).getByText("Please upload the receipt")).toBeInTheDocument();
+    expect(
+      within(log).getByText("Please upload the receipt"),
+    ).toBeInTheDocument();
     expect(within(log).getByText("Analis")).toBeInTheDocument();
     expect(log.querySelectorAll(".chat-message.mine")).toHaveLength(1);
     expect(log.querySelectorAll(".chat-message.theirs")).toHaveLength(1);
