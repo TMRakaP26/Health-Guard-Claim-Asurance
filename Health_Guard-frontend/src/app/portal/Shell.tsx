@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Dialog } from "./Dialog";
 import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../state/AuthContext";
 import { useLocale } from "./locale";
@@ -12,6 +13,7 @@ export function Shell() {
   const action = useAction();
   const catalog = useQuery<Catalog>(user ? "/catalog" : null);
   const [count, setCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -29,6 +31,8 @@ export function Shell() {
       }
     }
     void poll();
+    const refresh = () => void poll();
+    window.addEventListener("healthguard:notifications-changed", refresh);
     const timer = setInterval(() => {
       if (!document.hidden) void poll();
     }, 30000);
@@ -62,6 +66,7 @@ export function Shell() {
       controller.abort();
       clearInterval(timer);
       clearTimeout(reconnect);
+      window.removeEventListener("healthguard:notifications-changed", refresh);
     };
   }, [user, catalog.data?.features.realtime]);
   if (isLoading) return <Feedback loading />;
@@ -72,21 +77,8 @@ export function Shell() {
         replace
       />
     );
-  return (
-    <div className="app-shell">
-      <a className="skip" href="#main">
-        {t("Langsung ke konten", "Skip to content")}
-      </a>
-      <aside className="sidebar">
-        <Link className="brand" to="/claims">
-          ✚ HealthGuard
-        </Link>
-        <p>
-          {user.name}
-          <br />
-          <small>{user.role}</small>
-        </p>
-        <nav>
+  const navigation = (
+        <nav aria-label={t("Navigasi utama", "Main navigation")}>
           <Link to="/claims">{t("Daftar klaim", "Claims")}</Link>
           {user.role === "client" && (
             <>
@@ -119,22 +111,70 @@ export function Shell() {
           </Link>
           <Link to="/guide">{t("Panduan", "Guide")}</Link>
         </nav>
-        <label className="field">
-          <span>{t("Bahasa", "Language")}</span>
-          <select
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as "id" | "en")}
-          >
-            <option value="id">Indonesia</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <button disabled={action.busy} onClick={() => void action.run(logout)}>
-          {t("Keluar", "Sign out")}
+  );
+  return (
+    <div className="app-shell">
+      <a className="skip" href="#main">
+        {t("Langsung ke konten", "Skip to content")}
+      </a>
+      <aside className="sidebar">
+        <Link className="brand" to="/claims">
+          ✚ HealthGuard
+        </Link>
+        <button
+          className="mobile-menu-toggle"
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(true)}
+        >
+          {t("Buka menu", "Open menu")}
         </button>
-        <Feedback error={action.error} />
+        <p>
+          {user.name}
+          <br />
+          <small>{user.role}</small>
+        </p>
+        <div className="desktop-navigation">{navigation}</div>
       </aside>
+      {menuOpen && (
+        <Dialog label={t("Menu navigasi", "Navigation menu")} onClose={() => setMenuOpen(false)}>
+          <div className="panel mobile-navigation">
+            <button onClick={() => setMenuOpen(false)}>{t("Tutup menu", "Close menu")}</button>
+            <div onClick={(event) => {
+              if ((event.target as HTMLElement).closest("a")) setMenuOpen(false);
+            }}>{navigation}</div>
+          </div>
+        </Dialog>
+      )}
       <main id="main" className="main">
+        <header className="topbar">
+          <div
+            className="locale-switch"
+            role="group"
+            aria-label={t("Pilih bahasa", "Choose language")}
+          >
+            <button
+              type="button"
+              aria-pressed={locale === "id"}
+              className={locale === "id" ? "active" : ""}
+              onClick={() => setLocale("id")}
+            >
+              <span aria-hidden="true">🇮🇩</span> ID
+            </button>
+            <button
+              type="button"
+              aria-pressed={locale === "en"}
+              className={locale === "en" ? "active" : ""}
+              onClick={() => setLocale("en")}
+            >
+              <span aria-hidden="true">🇬🇧</span> EN
+            </button>
+          </div>
+          <button disabled={action.busy} onClick={() => void action.run(logout)}>
+            {t("Keluar", "Sign out")}
+          </button>
+        </header>
+        <Feedback error={action.error} />
         <Outlet />
       </main>
     </div>
@@ -154,6 +194,9 @@ export function Notifications() {
         onClick={() =>
           void action.run(async () => {
             await api.post("/notifications/read-all");
+            window.dispatchEvent(
+              new Event("healthguard:notifications-changed"),
+            );
             query.reload();
           })
         }
@@ -161,15 +204,22 @@ export function Notifications() {
         {t("Tandai semua dibaca", "Mark all read")}
       </button>
       <Feedback {...query} retry={query.reload} />
+      <Feedback error={action.error} />
       {query.data?.data.map((n) => (
         <article className="panel" key={n.id}>
           <button
             className="link-button"
             onClick={() =>
               void action.run(async () => {
-                await api.post("/notifications/" + n.id + "/read");
-                if (n.claim_id) navigate("/claims/" + n.claim_id);
-                else query.reload();
+                try {
+                  await api.post("/notifications/" + n.id + "/read");
+                  window.dispatchEvent(
+                    new Event("healthguard:notifications-changed"),
+                  );
+                } finally {
+                  if (n.claim_id) navigate("/claims/" + n.claim_id);
+                  else query.reload();
+                }
               })
             }
           >
@@ -209,8 +259,8 @@ export function Guide() {
           </li>
           <li>
             {t(
-              "Pantau status, histori, dan pesan pada detail klaim.",
-              "Follow status, history, and messages in claim details.",
+              "Pantau status, histori, dan chat pada detail klaim.",
+              "Follow status, history, and chat in claim details.",
             )}
           </li>
           <li>
@@ -221,8 +271,8 @@ export function Guide() {
           </li>
           <li>
             {t(
-              "Pembayaran mencatat referensi reimbursement dari pengelola.",
-              "Payment records show reimbursement references recorded by the administrator.",
+              "Catatan pembayaran menampilkan referensi pembayaran dari pengelola.",
+              "Payment records show payment references recorded by the administrator.",
             )}
           </li>
         </ol>

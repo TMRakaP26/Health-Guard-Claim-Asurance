@@ -9,6 +9,7 @@ export const statuses = [
 export type Status = (typeof statuses)[number];
 export interface User {
   id: number;
+  client_id?: string | null;
   name: string;
   email: string;
   role: Role;
@@ -36,9 +37,12 @@ export interface Claim {
   id: number;
   claim_id: string;
   user_id: number;
+  client_id?: string | null;
   client_name: string;
   provider_name: string;
   type: string;
+  disease_name?: string | null;
+  description?: string | null;
   amount: string;
   approved_amount: string | null;
   status: Status;
@@ -80,9 +84,10 @@ export interface History {
 }
 export interface Message {
   id: number;
+  user_id?: number | null;
   body: string;
   created_at: string;
-  user: { name: string } | null;
+  user: { id: number; name: string; role?: string } | null;
   documents: Document[];
 }
 export interface DocumentRequest {
@@ -124,8 +129,9 @@ export interface ClaimInput {
   client_name: string;
   provider_name: string;
   type: string;
+  disease_name: string;
+  description: string;
   amount: string;
-  bpjs_number: string;
   patient_date_of_birth: string;
   service_date: string;
 }

@@ -16,6 +16,8 @@ class SecurityUploadTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8qqKKKAP/2Q==';
+
     private const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=';
 
     private Claim $claim;
@@ -87,7 +89,7 @@ class SecurityUploadTest extends TestCase
 
     public static function validDocuments(): array
     {
-        return ['PDF' => ['evidence.pdf', '%PDF-1.4 test'], 'PNG' => ['evidence.png', 'PNG']];
+        return ['PDF' => ['evidence.pdf', '%PDF-1.4 test'], 'PNG' => ['evidence.png', 'PNG'], 'JPEG' => ['evidence.jpg', base64_decode(self::JPEG)]];
     }
 
     #[DataProvider('validDocuments')]
@@ -141,6 +143,13 @@ class SecurityUploadTest extends TestCase
         $response = $this->postJson('/api/user/photo', [
             'photo' => $this->upload('photo.png', base64_decode(self::PNG)),
         ])->assertOk();
+        Storage::disk('public')->assertExists($response->json('user.profile_photo'));
+    }
+
+    public function test_valid_jpeg_profile_photo_and_exact_size_limit(): void
+    {
+        $content = str_pad(base64_decode(self::JPEG), 2 * 1024 * 1024, ' ');
+        $response = $this->postJson('/api/user/photo', ['photo' => $this->upload('photo.jpg', $content)])->assertOk();
         Storage::disk('public')->assertExists($response->json('user.profile_photo'));
     }
 

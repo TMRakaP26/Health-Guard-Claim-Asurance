@@ -16,10 +16,12 @@ import {
   Field,
   date,
   fileAccept,
+  MoneyInput,
   rupiah,
   useAction,
   useQuery,
   validateFile,
+  message,
 } from "./shared";
 import type { Catalog, Claim, ClaimInput, Draft } from "./types";
 export function Drafts() {
@@ -60,8 +62,9 @@ const empty: ClaimInput = {
   client_name: "",
   provider_name: "",
   type: "",
+  disease_name: "",
+  description: "",
   amount: "",
-  bpjs_number: "",
   patient_date_of_birth: "",
   service_date: "",
 };
@@ -75,13 +78,30 @@ export function ClaimForm() {
   const catalog = useQuery<Catalog>("/catalog");
   const claim = useQuery<Claim>(id ? "/claims/" + id : null);
   const drafts = useQuery<Draft[]>(params.get("draft") ? "/drafts" : null);
-  const [data, setData] = useState<ClaimInput>({
+  // Local calendar date: toISOString() would shift the day in some time zones.
+  const today = new Date().toLocaleDateString("en-CA");
+  const clientId =
+    user?.client_id ||
+    (user?.id ? "CL-" + String(user.id).padStart(6, "0") : "");
+  const [data, setData] = useState<ClaimInput>(() => ({
     ...empty,
     client_name: user?.name || "",
-    bpjs_number: user?.bpjs_number || "",
     patient_date_of_birth: user?.date_of_birth || "",
-  });
+    service_date: id ? "" : today,
+  }));
   const [step, setStep] = useState(1);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef(step);
+  useEffect(() => {
+    if (previousStep.current !== step) stepHeading.current?.focus();
+    previousStep.current = step;
+  }, [step]);
+  const stepLabels = [
+    t("Pasien", "Patient"),
+    t("Layanan", "Service"),
+    t("Dokumen", "Documents"),
+    t("Tinjau", "Review"),
+  ];
   const [dirty, setDirty] = useState(false);
   const [draftId, setDraftId] = useState<number | undefined>(
     Number(params.get("draft")) || undefined,
@@ -89,6 +109,9 @@ export function ClaimForm() {
   const [savedClaim, setSavedClaim] = useState<string>();
   const [files, setFiles] = useState<File[]>([]);
   const [uploaded, setUploaded] = useState<string[]>([]);
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
+  const [validation, setValidation] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState(0);
   const [controller, setController] = useState<AbortController>();
   const loaded = useRef(false);
@@ -107,9 +130,7 @@ export function ClaimForm() {
     }
   }, [claim.data, drafts.data, params]);
   const allowNavigation = useRef(false);
-  const blocker = useBlocker(
-    () => dirty && !savedClaim && !allowNavigation.current,
-  );
+  const blocker = useBlocker(() => dirty && !allowNavigation.current);
   useEffect(() => {
     function before(e: BeforeUnloadEvent) {
       if (dirty) {
@@ -146,7 +167,9 @@ export function ClaimForm() {
       ),
     );
   }
-  async function submit() {
+  const fileKey = (file: File) =>
+    file.name + ":" + file.size + ":" + file.lastModified;
+  async function submit(onlyFile?: File) {
     let claimId = savedClaim;
     if (!claimId) {
       const r = await api.request<Claim>({
@@ -160,18 +183,32 @@ export function ClaimForm() {
     const abort = new AbortController();
     setController(abort);
     try {
-      for (const file of files) {
-        const key = file.name + ":" + file.size + ":" + file.lastModified;
-        if (uploaded.includes(key)) continue;
+      const confirmed = new Set(uploaded);
+      for (const file of onlyFile ? [onlyFile] : files) {
+        const key = fileKey(file);
+        if (confirmed.has(key)) continue;
         const body = new FormData();
         body.append("file", file);
-        await api.post("/claims/" + claimId + "/documents", body, {
-          signal: abort.signal,
-          onUploadProgress: (p) =>
-            setProgress(Math.round((p.progress || 0) * 100)),
+        setProgress(0);
+        try {
+          await api.post("/claims/" + claimId + "/documents", body, {
+            signal: abort.signal,
+            onUploadProgress: (p) =>
+              setProgress(Math.round((p.progress || 0) * 100)),
+          });
+        } catch (error) {
+          setFileErrors((old) => ({ ...old, [key]: message(error) }));
+          throw error;
+        }
+        setFileErrors((old) => {
+          const next = { ...old };
+          delete next[key];
+          return next;
         });
+        confirmed.add(key);
         setUploaded((list) => [...list, key]);
       }
+      if (files.some((file) => !confirmed.has(fileKey(file)))) return;
       if (draftId) await api.delete("/drafts/" + draftId);
       setDirty(false);
       toast.success(t("Klaim tersimpan", "Claim saved"));
@@ -181,7 +218,6 @@ export function ClaimForm() {
       setController(undefined);
     }
   }
-  const today = new Date().toLocaleDateString("en-CA");
   if (user?.role !== "client")
     return (
       <p role="alert">
@@ -202,12 +238,7 @@ export function ClaimForm() {
       <Feedback {...claim} retry={claim.reload} />
       <Feedback error={action.error} />
       <ol className="steps">
-        {[
-          t("Pasien", "Patient"),
-          t("Layanan", "Service"),
-          t("Dokumen", "Documents"),
-          t("Tinjau", "Review"),
-        ].map((s, i) => (
+        {stepLabels.map((s, i) => (
           <li key={s} aria-current={step === i + 1 ? "step" : undefined}>
             {i + 1}. {s}
           </li>
@@ -224,12 +255,52 @@ export function ClaimForm() {
       )}
       <form
         className="panel"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          const invalid = Array.from(
+            e.currentTarget.querySelectorAll<HTMLInputElement>("input:invalid"),
+          );
+          setFieldErrors(
+            Object.fromEntries(
+              invalid.map((input) => [input.name, input.validationMessage]),
+            ),
+          );
+          setValidation(
+            invalid.map(
+              (input) =>
+                `${input.getAttribute("aria-label") || input.labels?.[0]?.querySelector(":scope > span")?.textContent?.trim() || t("Kolom", "Field")}: ${input.validationMessage}`,
+            ),
+          );
+          for (const input of e.currentTarget.querySelectorAll<HTMLInputElement>(
+            "input",
+          )) {
+            input.setAttribute("aria-invalid", String(!input.validity.valid));
+          }
+          if (invalid.length) {
+            invalid[0].focus();
+            return;
+          }
           if (step < 4) setStep(step + 1);
-          else void action.run(submit);
+          else void action.run(() => submit());
         }}
       >
+        <h2 ref={stepHeading} tabIndex={-1}>
+          {t("Langkah", "Step")} {step} {t("dari", "of")} 4:{" "}
+          {stepLabels[step - 1]}
+        </h2>
+        {validation.length > 0 && (
+          <div className="error" role="alert">
+            <strong>
+              {t("Periksa data pengajuan", "Check claim details")}
+            </strong>
+            <ul>
+              {validation.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <fieldset disabled={!!savedClaim || action.busy}>
           <legend>{t("Data pengajuan", "Claim data")}</legend>
           {step === 1 && (
@@ -239,52 +310,120 @@ export function ClaimForm() {
                   required
                   maxLength={255}
                   value={data.client_name}
+                  name="client_name"
+                  aria-label={t("Nama pasien", "Patient name")}
+                  aria-describedby="client_name-error client_name-hint"
                   onChange={(e) => change("client_name", e.target.value)}
                 />
+                <span id="client_name-error">{fieldErrors.client_name}</span>
+                <small id="client_name-hint">
+                  {t(
+                    "Diisi dari profil akun Anda. Ubah jika pasien berbeda.",
+                    "Prefilled from your account profile. Change it if the patient is different.",
+                  )}
+                </small>
               </Field>
               <Field label={t("Tanggal lahir pasien", "Patient date of birth")}>
                 <input
                   type="date"
                   max={today}
                   value={data.patient_date_of_birth}
+                  name="patient_date_of_birth"
+                  aria-label={t(
+                    "Tanggal lahir pasien",
+                    "Patient date of birth",
+                  )}
+                  aria-describedby="patient_date_of_birth-error patient_date_of_birth-hint"
                   onChange={(e) =>
                     change("patient_date_of_birth", e.target.value)
                   }
                 />
+                <span id="patient_date_of_birth-error">
+                  {fieldErrors.patient_date_of_birth}
+                </span>
+                {!user?.date_of_birth && (
+                  <small id="patient_date_of_birth-hint">
+                    {t(
+                      "Belum diisi di profil. Lengkapi profil agar tanggal lahir terisi otomatis.",
+                      "Not set in your profile. Complete your profile to autofill this date.",
+                    )}
+                  </small>
+                )}
               </Field>
-              <Field label="Nomor BPJS">
+              <Field label={t("ID Client", "Client ID")}>
                 <input
-                  maxLength={30}
-                  value={data.bpjs_number}
-                  onChange={(e) => change("bpjs_number", e.target.value)}
+                  value={clientId}
+                  name="client_id"
+                  readOnly
+                  aria-label={t("ID Client", "Client ID")}
+                  aria-describedby="client_id-hint"
                 />
+                <small id="client_id-hint">
+                  {t(
+                    "Dibuat oleh server dari akun Anda dan tidak dapat diubah.",
+                    "Created by the server from your account and cannot be changed.",
+                  )}
+                </small>
               </Field>
             </>
           )}
           {step === 2 && (
             <>
-              <Field label="Provider">
+              <Field label={t("Rumah sakit", "Hospital")}>
                 <input
                   required
                   list="providers"
                   maxLength={255}
                   value={data.provider_name}
+                  name="provider_name"
+                  aria-describedby="provider_name-error"
                   onChange={(e) => change("provider_name", e.target.value)}
                 />
+                <span id="provider_name-error">
+                  {fieldErrors.provider_name}
+                </span>
                 <datalist id="providers">
                   {catalog.data?.providers.map((p) => (
                     <option key={p.id} value={p.name} />
                   ))}
                 </datalist>
               </Field>
-              <Field label={t("Kategori klaim", "Claim category")}>
+              <Field label={t("Penyakit", "Disease")}>
+                <input
+                  required
+                  maxLength={255}
+                  value={data.disease_name}
+                  name="disease_name"
+                  aria-label={t("Penyakit", "Disease")}
+                  aria-describedby="disease_name-error disease_name-hint"
+                  onChange={(e) => change("disease_name", e.target.value)}
+                />
+                <span id="disease_name-error">{fieldErrors.disease_name}</span>
+                <small id="disease_name-hint">
+                  {t(
+                    "Nama penyakit atau diagnosis yang tercantum pada dokumen.",
+                    "The disease or diagnosis stated in the documents.",
+                  )}
+                </small>
+              </Field>
+              <Field label={t("Jenis layanan", "Service type")}>
                 <input
                   required
                   list="categories"
                   maxLength={255}
                   value={data.type}
+                  name="type"
+                  aria-label={t("Jenis layanan", "Service type")}
+                  aria-describedby="type-error type-hint"
                   onChange={(e) => change("type", e.target.value)}
                 />
+                <span id="type-error">{fieldErrors.type}</span>
+                <small id="type-hint">
+                  {t(
+                    "Kategori layanan lama tetap disimpan terpisah dari penyakit.",
+                    "The legacy service category is kept separate from the disease.",
+                  )}
+                </small>
                 <datalist id="categories">
                   {catalog.data?.categories.map((p) => (
                     <option key={p.id} value={p.name} />
@@ -304,18 +443,45 @@ export function ClaimForm() {
                   type="date"
                   max={today}
                   value={data.service_date}
+                  name="service_date"
+                  aria-describedby="service_date-error"
                   onChange={(e) => change("service_date", e.target.value)}
                 />
+                <span id="service_date-error">{fieldErrors.service_date}</span>
               </Field>
               <Field label={t("Nominal klaim (IDR)", "Claim amount (IDR)")}>
-                <input
-                  type="number"
+                <MoneyInput
                   required
-                  min=".01"
-                  step=".01"
                   max={catalog.data?.max_amount || 99999999.99}
                   value={data.amount}
-                  onChange={(e) => change("amount", e.target.value)}
+                  name="amount"
+                  aria-label={t("Nominal klaim (IDR)", "Claim amount (IDR)")}
+                  aria-describedby="amount-error"
+                  invalidMessage={t(
+                    "Nominal harus lebih dari 0 dan tidak melebihi batas.",
+                    "Amount must be greater than zero and within the limit.",
+                  )}
+                  onChange={(value) => change("amount", value)}
+                />
+                <span id="amount-error">{fieldErrors.amount}</span>
+                <small>
+                  {t(
+                    "Gunakan titik sebagai pemisah ribuan; koma untuk sen.",
+                    "Use dots as thousands separators; a comma for cents.",
+                  )}
+                </small>
+              </Field>
+              <Field label={t("Deskripsi", "Description")}>
+                <textarea
+                  name="description"
+                  rows={4}
+                  maxLength={4000}
+                  value={data.description}
+                  placeholder={t(
+                    "Jelaskan keluhan, tindakan, atau konteks klaim.",
+                    "Describe the symptoms, treatment, or claim context.",
+                  )}
+                  onChange={(e) => change("description", e.target.value)}
                 />
               </Field>
             </>
@@ -349,18 +515,15 @@ export function ClaimForm() {
                   "PDF, JPG, PNG, DOC/DOCX. Maximum 10 MB per file.",
                 )}
               </p>
-              <ul>
-                {files.map((f) => (
-                  <li key={f.name + f.size}>
-                    {f.name} ({Math.ceil(f.size / 1024)} KB)
-                  </li>
-                ))}
-              </ul>
             </>
           )}
           {step === 4 && (
             <>
               <dl>
+                <div>
+                  <dt>{t("ID Client", "Client ID")}</dt>
+                  <dd>{clientId || "—"}</dd>
+                </div>
                 {Object.entries(data).map(([key, value]) => (
                   <div key={key}>
                     <dt>
@@ -368,20 +531,23 @@ export function ClaimForm() {
                         (
                           {
                             client_name: t("Pasien", "Patient"),
-                            provider_name: "Provider",
-                            type: t("Kategori", "Category"),
+                            provider_name: t("Rumah sakit", "Hospital"),
+                            type: t("Jenis layanan", "Service type"),
+                            disease_name: t("Penyakit", "Disease"),
+                            description: t("Deskripsi", "Description"),
                             amount: t("Nominal", "Amount"),
-                            bpjs_number: "BPJS",
                             patient_date_of_birth: t(
                               "Tanggal lahir",
-                              "Birth date",
+                              "Date of birth",
                             ),
                             service_date: t("Tanggal layanan", "Service date"),
                           } as Record<string, string>
                         )[key]
                       }
                     </dt>
-                    <dd>{key === "amount" ? rupiah(value) : value || "—"}</dd>
+                    <dd className={key === "description" ? "pre-wrap" : ""}>
+                      {key === "amount" ? rupiah(value) : value || "—"}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -398,6 +564,43 @@ export function ClaimForm() {
             </>
           )}
         </fieldset>
+        {step >= 3 && (
+          <ul aria-label={t("Dokumen dipilih", "Selected documents")}>
+            {files.map((file) => (
+              <li key={fileKey(file)}>
+                {file.name} ({Math.ceil(file.size / 1024)} KB)
+                {uploaded.includes(fileKey(file)) ? (
+                  <span role="status"> — {t("Terunggah", "Uploaded")}</span>
+                ) : (
+                  <>
+                    {fileErrors[fileKey(file)] && (
+                      <span role="alert"> {fileErrors[fileKey(file)]}</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={action.busy}
+                      onClick={() => {
+                        setFiles((old) => old.filter((f) => f !== file));
+                        setDirty(true);
+                      }}
+                    >
+                      {t("Hapus", "Remove")} {file.name}
+                    </button>
+                    {savedClaim && (
+                      <button
+                        type="button"
+                        disabled={action.busy}
+                        onClick={() => void action.run(() => submit(file))}
+                      >
+                        {t("Coba ulang", "Retry")} {file.name}
+                      </button>
+                    )}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="actions">
           {step > 1 && !savedClaim && (
             <button

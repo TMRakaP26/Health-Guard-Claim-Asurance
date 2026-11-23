@@ -87,8 +87,8 @@ export function ClaimList() {
       <section className="panel filters">
         <Field
           label={t(
-            "Cari klaim, pasien, provider",
-            "Search claim, patient, provider",
+            "Cari klaim, pasien, rumah sakit, penyakit",
+            "Search claim, patient, hospital, disease",
           )}
         >
           <input
@@ -158,7 +158,8 @@ export function ClaimList() {
                 <tr>
                   {[
                     t("Klaim / pasien", "Claim / patient"),
-                    "Provider",
+                    t("ID Client", "Client ID"),
+                    t("Rumah sakit / penyakit", "Hospital / disease"),
                     t("Nominal", "Amount"),
                     "Status",
                     t("Analis", "Analyst"),
@@ -172,14 +173,15 @@ export function ClaimList() {
               </thead>
               <tbody>
                 {query.data.data.map((c) => (
-                  <tr key={c.claim_id}>
+                  <tr key={c.id}>
                     <td>
                       <Link to={"/claims/" + c.claim_id}>{c.claim_id}</Link>
                       <small>{c.client_name}</small>
                     </td>
+                    <td>{c.client_id || "—"}</td>
                     <td>
                       {c.provider_name}
-                      <small>{c.type}</small>
+                      <small>{c.disease_name || "—"}</small>
                     </td>
                     <td>{rupiah(c.amount)}</td>
                     <td>

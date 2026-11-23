@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 export function Dialog({
   label,
   onClose,
@@ -9,10 +9,16 @@ export function Dialog({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = ref.current;
+    const opener = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     dialog?.showModal();
-    return () => dialog?.close();
+    return () => {
+      dialog?.close();
+      if (opener?.isConnected) opener.focus();
+    };
   }, []);
   return (
     <dialog

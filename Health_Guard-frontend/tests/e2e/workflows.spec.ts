@@ -22,10 +22,18 @@ test("client submits, analyst requests information, client resubmits, analyst ap
     .click();
   await page.getByLabel("Nama pasien").fill("E2E Patient");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
-  await page.getByLabel("Provider", { exact: true }).fill("E2E Hospital");
-  await page.getByLabel("Kategori klaim").fill("Outpatient");
+  await page.getByLabel("Rumah sakit", { exact: true }).fill("E2E Hospital");
+  await page.getByLabel("Penyakit").fill("Flu");
+  await page.getByLabel("Jenis layanan").fill("Outpatient");
   await page.getByLabel("Nominal klaim (IDR)").fill("1000.50");
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
+  await page
+    .getByLabel("Pilih dokumen pendukung")
+    .setInputFiles({
+      name: "receipt.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\nE2E receipt"),
+    });
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Kirim pengajuan" }).click();
@@ -33,6 +41,9 @@ test("client submits, analyst requests information, client resubmits, analyst ap
   const url = page.url();
   await page.reload();
   await expect(page.getByRole("heading", { name: /CLM-/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "receipt.pdf", exact: true }),
+  ).toBeVisible();
   const context = await browser.newContext();
   const analyst = await context.newPage();
   await login(analyst, "analyst");
@@ -73,11 +84,15 @@ test("accessibility, responsive navigation, draft resume and locale", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole('heading',{name:'Selamat datang kembali'})).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Selamat datang kembali" }),
+  ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await login(page, "client");
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('heading',{name:'Daftar klaim'})).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Daftar klaim" }),
+  ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page
     .getByRole("link", { name: "Ajukan klaim", exact: true })
@@ -88,12 +103,13 @@ test("accessibility, responsive navigation, draft resume and locale", async ({
   await expect(
     page.getByText("Draf disimpan.", { exact: false }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Buka menu" }).click();
   await page.getByRole("link", { name: "Draf tersimpan" }).click();
   await page.getByRole("link", { name: "Saved patient" }).click();
   await expect(page.getByLabel("Nama pasien")).toHaveValue("Saved patient");
   await page
-    .getByRole("combobox", { name: "Bahasa", exact: true })
-    .selectOption("en");
+    .getByRole("button", { name: "EN", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Submit claim" }),
   ).toBeVisible();

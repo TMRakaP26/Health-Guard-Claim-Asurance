@@ -40,7 +40,9 @@ jobs:
           extensions: mbstring, pdo_mysql, pdo_sqlite, zip
       - run: composer install --no-interaction --prefer-dist
       - run: php vendor/bin/pint --test
-      - run: php artisan test
+      - name: Prepare disposable test environment file
+        run: cp .env.example .env
+      - run: php artisan test --display-warnings
   frontend:
     runs-on: ubuntu-latest
     defaults:

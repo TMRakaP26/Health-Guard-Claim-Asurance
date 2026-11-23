@@ -19,6 +19,8 @@ class Claim extends Model
         'client_name',
         'provider_name',
         'type',
+        'disease_name',
+        'description',
         'amount',
         'status',
         'notes',

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi, describe, it, expect, beforeEach } from "vitest";
@@ -7,7 +7,12 @@ import { ClaimList } from "../src/app/portal/ClaimList";
 import { ClaimDetail } from "../src/app/portal/ClaimDetail";
 import { ClaimForm } from "../src/app/portal/ClaimForm";
 import { LocaleProvider } from "../src/app/portal/locale";
-import { validateFile, rupiah } from "../src/app/portal/shared";
+import {
+  formatAmount,
+  normalizeAmount,
+  rupiah,
+  validateFile,
+} from "../src/app/portal/shared";
 vi.mock("../src/app/api/client", () => ({
   default: {
     get: vi.fn(),
@@ -57,6 +62,192 @@ function mount(element: React.ReactNode, path = "/claims") {
   );
 }
 beforeEach(() => vi.resetAllMocks());
+function mockDetail(status = "Needs Info", history: unknown[] = []) {
+  vi.mocked(api.get).mockImplementation(async (url) => ({
+    data: String(url).includes("/history?")
+      ? { data: history, meta: { last_page: 1 } }
+      : String(url).endsWith("/document-requests")
+        ? []
+        : url === "/catalog"
+          ? { providers: [], categories: [], features: {} }
+          : { ...claim, status },
+  }));
+}
+describe("claim history and statuses", () => {
+  it.each([
+    "Pending",
+    "Approved",
+    "Rejected",
+    "Needs Info",
+    "Partially Approved",
+  ])("renders %s in the current status badge", async (status) => {
+    mockDetail(status);
+    const { container } = mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    await screen.findByRole("heading", { name: "CLM-2026-001" });
+    expect(container.querySelector(".page-header .badge")).toHaveTextContent(
+      status,
+    );
+  });
+  it("renders an explicit empty history state", async () => {
+    mockDetail();
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    expect(
+      await screen.findByText("Belum ada histori klaim."),
+    ).toBeInTheDocument();
+  });
+  it("renders actor, transition, note and amount", async () => {
+    mockDetail("Partially Approved", [
+      {
+        id: 1,
+        event: "status_changed",
+        from_status: "Pending",
+        to_status: "Partially Approved",
+        notes: "Receipt reviewed",
+        approved_amount: "200.25",
+        actor: { name: "Reviewer" },
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    await screen.findByText("status changed");
+    const timeline = within(
+      screen
+        .getByRole("heading", { name: "Histori klaim" })
+        .closest("section")!,
+    );
+    expect(
+      timeline.getByText("Pending → Partially Approved"),
+    ).toBeInTheDocument();
+    expect(timeline.getByText("Receipt reviewed")).toBeInTheDocument();
+    expect(timeline.getByText(/Reviewer/)).toBeInTheDocument();
+    expect(timeline.getByText(/200,25/)).toBeInTheDocument();
+  });
+  it("retries a failed history request independently", async () => {
+    mockDetail();
+    const original = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((...args) =>
+      String(args[0]).includes("/history?")
+        ? Promise.reject(new Error("History offline"))
+        : original(...args),
+    );
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    await screen.findByText("History offline", { exact: false });
+    mockDetail();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Coba lagi / Retry" }),
+    );
+    expect(
+      await screen.findByText("Belum ada histori klaim."),
+    ).toBeInTheDocument();
+  });
+});
+async function prepareClaim(files: File[] = []) {
+  vi.mocked(api.get).mockResolvedValue({
+    data: {
+      providers: [],
+      categories: [],
+      features: {},
+      max_amount: 99999999.99,
+    },
+  });
+  vi.mocked(api.request).mockResolvedValue({ data: claim });
+  mount(<ClaimForm />, "/claims/new");
+  await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+  await userEvent.type(screen.getByLabelText("Rumah sakit"), "Hospital");
+  await userEvent.type(screen.getByLabelText("Penyakit"), "Flu");
+  await userEvent.type(screen.getByLabelText("Jenis layanan"), "Outpatient");
+  await userEvent.type(screen.getByLabelText("Nominal klaim (IDR)"), "500");
+  await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+  if (files.length)
+    await userEvent.upload(
+      screen.getByLabelText("Pilih dokumen pendukung"),
+      files,
+    );
+}
+describe("claim form recovery", () => {
+  it("moves focus to the new step heading on next and back", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { providers: [], categories: [] },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(
+      screen.getByRole("heading", { name: "Langkah 2 dari 4: Layanan" }),
+    ).toHaveFocus();
+    await userEvent.tab();
+    expect(screen.getByLabelText("Rumah sakit")).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "Kembali" }));
+    expect(
+      screen.getByRole("heading", { name: "Langkah 1 dari 4: Pasien" }),
+    ).toHaveFocus();
+    expect(screen.getByText("1. Pasien")).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+  });
+  it("summarizes invalid fields, focuses the first and does not submit", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { providers: [], categories: [] },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await userEvent.clear(screen.getByLabelText("Nama pasien"));
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Nama pasien");
+    expect(screen.getByLabelText(/^Nama pasien/)).toHaveFocus();
+    expect(screen.getByLabelText(/^Nama pasien/)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(api.request).not.toHaveBeenCalled();
+  });
+  it("removes selected files and shows filenames in confirmation", async () => {
+    await prepareClaim([
+      new File(["%PDF-1.4"], "keep.pdf", { type: "application/pdf" }),
+      new File(["%PDF-1.4"], "remove.pdf", { type: "application/pdf" }),
+    ]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Hapus remove.pdf" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(
+      screen.getByRole("list", { name: "Dokumen dipilih" }),
+    ).toHaveTextContent("keep.pdf");
+    expect(screen.queryByText(/remove.pdf/)).not.toBeInTheDocument();
+  });
+  it("retries only the failed file without recreating the claim or uploading confirmed files", async () => {
+    await prepareClaim([
+      new File(["%PDF-1.4"], "first.pdf", { type: "application/pdf" }),
+      new File(["%PDF-1.4"], "second.pdf", { type: "application/pdf" }),
+      new File(["%PDF-1.4"], "third.pdf", { type: "application/pdf" }),
+    ]);
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: {} })
+      .mockRejectedValueOnce(new Error("Upload offline"))
+      .mockResolvedValue({ data: {} });
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Kirim pengajuan" }),
+    );
+    await screen.findByRole("button", { name: "Coba ulang second.pdf" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Coba ulang second.pdf" }),
+    );
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+    expect(api.request).toHaveBeenCalledTimes(1);
+    const sent = vi
+      .mocked(api.post)
+      .mock.calls.map((call) => (call[1] as FormData).get("file") as File);
+    expect(sent.map((file) => file.name)).toEqual([
+      "first.pdf",
+      "second.pdf",
+      "second.pdf",
+    ]);
+    expect(
+      screen.getByRole("button", { name: "Coba ulang third.pdf" }),
+    ).toBeInTheDocument();
+  });
+});
 describe("API-driven claims", () => {
   it("renders server totals and requests another page", async () => {
     vi.mocked(api.get).mockResolvedValue({
@@ -75,7 +266,9 @@ describe("API-driven claims", () => {
     });
     mount(<ClaimList />);
     expect(await screen.findByText("26")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "→" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Halaman berikutnya" }),
+    );
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith("/claims?page=2", expect.anything()),
     );
@@ -147,4 +340,122 @@ it("validates upload boundaries and formats decimal currency", () => {
     validateFile(new File(["%PDF-1.4"], "receipt.pdf")),
   ).not.toThrow();
   expect(rupiah("1234.50")).toContain("1.234,50");
+  expect(rupiah("1000")).toContain("1.000");
+  expect(rupiah("1000")).not.toContain(",00");
+  expect(normalizeAmount("1.500.000")).toBe("1500000");
+  expect(normalizeAmount("100.50")).toBe("100.50");
+  expect(normalizeAmount("1.234,50")).toBe("1234.50");
+  expect(formatAmount("1500000")).toBe("1.500.000");
+  expect(formatAmount("100.50")).toBe("100,50");
+});
+
+describe("client identity, disease and chat UX", () => {
+  it("shows a read-only client ID, local service date and the new claim labels", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        providers: [],
+        categories: [],
+        features: {},
+        max_amount: 99999999.99,
+      },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await waitFor(() =>
+      expect(screen.queryByText("Memuat / Loading…")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText("ID Client")).toHaveValue("CL-000001");
+    expect(screen.getByLabelText("ID Client")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Nama pasien")).toHaveValue("Patient");
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    expect(screen.getByLabelText("Tanggal layanan")).toHaveValue(
+      new Date().toLocaleDateString("en-CA"),
+    );
+    expect(screen.getByLabelText("Rumah sakit")).toBeInTheDocument();
+    expect(screen.getByLabelText("Penyakit")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jenis layanan")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/BPJS/)).not.toBeInTheDocument();
+  });
+
+  it("groups thousands while typing an amount", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        providers: [],
+        categories: [],
+        features: {},
+        max_amount: 99999999.99,
+      },
+    });
+    mount(<ClaimForm />, "/claims/new");
+    await userEvent.click(screen.getByRole("button", { name: "Lanjut" }));
+    const amount = screen.getByLabelText("Nominal klaim (IDR)");
+    await userEvent.type(amount, "1500000");
+    expect(amount).toHaveValue("1.500.000");
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "100.50");
+    expect(amount).toHaveValue("100,50");
+  });
+
+  it("renders hospital, disease, description and modern chat bubbles", async () => {
+    const detailed = {
+      ...claim,
+      client_id: "CL-000001",
+      disease_name: "Flu",
+      description: "Demam tiga hari",
+    };
+    vi.mocked(api.get).mockImplementation(async (url) => ({
+      data: String(url).includes("/messages?")
+        ? {
+            data: [
+              {
+                id: 2,
+                user_id: 2,
+                body: "Please upload the receipt",
+                created_at: "2026-01-02T00:00:00Z",
+                user: { id: 2, name: "Analyst", role: "analyst" },
+                documents: [],
+              },
+              {
+                id: 1,
+                user_id: 1,
+                body: "Here is my claim",
+                created_at: "2026-01-01T00:00:00Z",
+                user: { id: 1, name: "Patient", role: "client" },
+                documents: [],
+              },
+            ],
+            current_page: 1,
+            last_page: 1,
+            total: 2,
+          }
+        : String(url).includes("/history?")
+          ? { data: [], meta: { last_page: 1 } }
+          : String(url).endsWith("/document-requests")
+            ? []
+            : url === "/catalog"
+              ? {
+                  providers: [],
+                  categories: [],
+                  features: { messages: true, payments: false },
+                }
+              : detailed,
+    }));
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    expect(
+      await screen.findByRole("heading", { name: "Chat" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Rumah sakit")).toBeInTheDocument();
+    expect(screen.getByText("Penyakit")).toBeInTheDocument();
+    expect(screen.getByText("Flu")).toBeInTheDocument();
+    expect(screen.getByText("Deskripsi")).toBeInTheDocument();
+    expect(screen.getByText("Demam tiga hari")).toBeInTheDocument();
+    expect(screen.queryByText("BPJS")).not.toBeInTheDocument();
+    const log = screen.getByRole("log", { name: "Pesan chat" });
+    expect(within(log).getByText("Here is my claim")).toBeInTheDocument();
+    expect(
+      within(log).getByText("Please upload the receipt"),
+    ).toBeInTheDocument();
+    expect(within(log).getByText("Analis")).toBeInTheDocument();
+    expect(log.querySelectorAll(".chat-message.mine")).toHaveLength(1);
+    expect(log.querySelectorAll(".chat-message.theirs")).toHaveLength(1);
+  });
 });

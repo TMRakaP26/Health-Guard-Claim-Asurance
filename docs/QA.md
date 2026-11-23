@@ -1,4 +1,26 @@
-# Verification and manual QA
+# Verification and QA
+
+## Current acceptance scope — 22 November 2026
+
+**Final result:** all 9 browser tests passed (8.6 minutes). The final validation-summary
+fix passed both targeted QA tests again (1.9 minutes), plus typecheck/lint, 33 component tests
+and production build. Backend: 167 passed, 2 database-specific skips, 859 assertions; Pint
+passed. Cookie security: 5 passed. TEST-05, UX-10 and BL-12 are complete under the revised
+automated scope. Detailed revision/run evidence is in IMPLEMENTATION.md.
+
+The user requested that the agent perform QA without manual testing. The current gate for
+TEST-05, UX-10 and BL-12 is the automated suite and coverage map in TEST-COVERAGE.md.
+The manual procedures below remain optional reference material; unexecuted worksheet rows
+are not release blockers under this revised scope and are not represented as passed.
+Automated checks do not establish NVDA/VoiceOver speech behavior, native OS picker usability,
+actual browser zoom behavior or complete accessibility conformance.
+
+Run `npm run test:e2e` with Chrome (`PLAYWRIGHT_CHANNEL=chrome` on this Windows host), plus
+the backend and frontend commands in README.md. E2E uses disposable SQLite/storage and
+synthetic accounts. `qa-states.spec.ts` adds delayed responses, failed request/retry with
+preserved filters, empty results, real token revocation, and ID/EN form validation semantics
+at 360 px with reduced-motion preference. Keep Playwright's report, failure traces and
+responsive screenshots as local evidence; do not include authentication traces in Git.
 
 Automated: composer test; Pint; TypeScript strict; ESLint; Vitest/RTL; cookie security tests; production build; Playwright + axe. CI includes MySQL8.4, SQLite and isolated Docker smoke. Passing local SQLite tests does not prove MySQL migration/import/restore.
 
@@ -15,14 +37,99 @@ Automated: composer test; Pint; TypeScript strict; ESLint; Vitest/RTL; cookie se
 9. Configure Mailpit or test SMTP; verify email and reset password. Old tokens/reset token must no longer work. Enable TOTP, test replay and one-use recovery.
 10. Request deletion. With feature disabled or open claims: reject approval. In disposable data with approved policy: delete account/files and preserve review record.
 
+## Empty, loading, error and slow-network scenarios (TEST-05)
+
+Use disposable accounts and browser network controls; record observations in the worksheet.
+
+1. With a new client, open claims, drafts, notifications and claim history without entries.
+   Confirm each empty state is understandable and offers the appropriate next action.
+2. Throttle the network before opening a claim directly by URL and refreshing it. Confirm
+   loading feedback appears, then the correct claim; repeat with the analyst account.
+3. Go offline before loading the list/detail/history. Confirm a readable error and retry
+   control; restore connectivity and retry without losing filters or showing another claim.
+4. Delay a form submission and an analyst decision. Confirm busy feedback prevents duplicate
+   actions; after completion, reload and verify exactly one mutation/history event.
+5. Interrupt a document upload after the claim is saved. Confirm the failed filename is
+   identified, navigation warns about incomplete uploads, and retry uses the existing claim.
+6. Expire the session while on a protected page. Confirm the next protected request returns
+   to login; after signing in, verify the intended destination and ownership restrictions.
+
+These steps extend the manual checklist; they are not recorded as executed.
+
 ## Accessibility
 
 Automated axe checks are included for login and mobile claims list. Manual audit still requires assistive technology:
 - Keyboard-only Tab/Shift+Tab through nav, form, upload, pagination and dialog.
 - Dialog traps focus, Escape closes, focus returns to opener; unsaved dialog respects stay/leave.
-- NVDA/VoiceOver announces label, errors, loading/success and selected step.
+- NVDA/VoiceOver announces label, errors, loading/success and selected step. Next/Back focuses
+  the localized step heading; the next Tab reaches the first input.
 - Zoom200%, widths390/768/1440; no clipped controls. Wide tables may scroll independently.
 - Indonesia/English toggle persists; IDR retains decimals, dates show Asia/Jakarta.
 - Reduced motion and visible focus; status must be readable without color.
 
 Do not label manual screen-reader testing as completed merely because axe passes. See IMPLEMENTATION.md for actual execution results and remaining environment checks.
+
+## Execution record — 21 November 2026
+
+Follow-up: the user confirmed manual auditing is not currently available. This session has
+no interactive desktop-control tool, and NVDA was not found in standard installation locations.
+No tester observations have been supplied. Manual rows below remain unexecuted, not passed.
+The additional profile/admin browser audit reproduced duplicate admin pagination landmarks;
+the labels were corrected in ID/EN. The expanded seven-test suite is being verified.
+
+| Check | Result | Evidence / next requirement |
+|---|---|---|
+| Frontend typecheck, lint, build | Passed | Local Node 22.22.0 |
+| Component/authentication tests | Passed | 30 Vitest tests, including next/back step focus and Tab to first input |
+| Cookie security | Passed | 5 Node tests |
+| Backend SQLite | Passed | PHP 8.3.30: 164 passed / 2 database-specific skips, 847 assertions; Pint passed |
+| Full E2E matrix | Passed | 5 tests, 3.3 minutes, exit 0; Chrome 157.0.8103.79 with disposable SQLite/storage; includes keyboard step focus and upload recovery |
+| MySQL / Docker | Not rerun | Historical evidence is retained in IMPLEMENTATION.md |
+| Manual client/analyst QA | Not executed | Run core scenarios above on disposable data |
+| Keyboard-only happy paths | Not executed | Complete both roles without pointer input |
+| NVDA/VoiceOver | Not executed | Record reader/version, browser, route and announcements |
+| Remote CI | Not rechecked | Local results do not establish the status of the latest remote commit |
+
+The 19–20 November PR/CI execution history is preserved in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+The earlier five-test run used revision `3e85bab617625fc1cd521e71e604f87764e4f39b`.
+Later admin fixes have their own verification record in IMPLEMENTATION.md.
+Local report: `Health_Guard-frontend/playwright-report/index.html` (Git-ignored).
+See [TEST-COVERAGE.md](TEST-COVERAGE.md) for criterion-to-test mapping. The previous claim that
+TEST-04 still lacked a passing expanded browser matrix is superseded by the local results above.
+
+Before merge, require these CI checks on the proposed commit: `backend (sqlite)`,
+`backend (mysql)`, `frontend`, `e2e`, and `docker`. This documents the merge criteria;
+repository branch-protection settings were not changed. TEST-02 is now complete. A green
+pipeline does not replace manual accessibility checks. TEST-05, UX-10 and BL-12 remain partial.
+
+Upload recovery regression: select three distinct PDFs, remove one before confirmation, verify
+the remaining filenames, interrupt an upload, then retry its individual button. Confirm the claim
+ID stays the same and previously confirmed uploads are not sent again. Navigate away while an
+upload remains incomplete and verify the unsaved-changes dialog. Submit an empty required field
+and verify the summary, inline error and focus. Automated checks cover removal, filenames,
+focus, and selective retry; upload-recovery.spec.ts adds the browser/API regression. The manual
+flow remains outstanding.
+
+## Manual execution worksheet
+
+Use disposable data and record the tested revision, date/time (Asia/Jakarta), tester, OS,
+browser/version, screen reader/version and language before running the checklist. For every
+row record observed behavior, pass/fail, and an evidence path or issue; blank observations
+must not be treated as a pass. Do not put real patient information into screenshots or logs.
+
+| Ticket / checks | Required observations | Current status |
+|---|---|---|
+| TEST-05 core 1–3 | Registration errors, persisted profile/photo, draft resume and leave/stay | Pending manual execution |
+| TEST-05 core 4–6 | Upload failure/retry, ownership, assignment conflict, messages, document requests and all decisions | Pending manual execution |
+| TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Pending manual execution |
+| TEST-05 state handling | Empty lists, throttled loading, offline error/retry, duplicate-action prevention, interrupted uploads and expired session | Pending manual execution |
+| UX-10 client | Keyboard login, drawer, four-step form (including Next/Back focus), native file picker, document viewer, history/pagination | Pending manual execution |
+| UX-10 analyst | Keyboard queue, assignment, notes/partial amount, decision dialog trap, Escape and return focus | Pending manual execution |
+| UX-10 visual | 360/390/768/1440 px; actual browser zoom 200%; focus indicator, clipping, independent table scroll, reduced motion | Pending manual execution |
+| BL-12 form | Reader announces labels, current step heading, required/invalid fields and error summary in ID/EN | Pending NVDA/VoiceOver execution |
+| BL-12 async/dialogs | Reader announces loading, success/error, dialog name, restored focus and distinct conversation/history landmarks | Pending NVDA/VoiceOver execution |
+
+For screen-reader checks, record the words actually announced and how focus moved, not just
+“axe passed.” Browser viewport resizing is not proof of actual browser zoom. Playwright's
+filechooser.setFiles is not proof of a manually operated native picker. These distinctions
+are the reason the three manual tickets remain open.

@@ -208,8 +208,8 @@ class ProductWorkflowsTest extends TestCase
         $this->getJson('/api/analytics')->assertForbidden();
         $this->postJson('/api/admin/catalog/providers', ['name' => 'H', 'code' => 'H'])->assertForbidden();
         Sanctum::actingAs($this->person('admin'));
-        $this->postJson('/api/admin/catalog/categories',['name' => 'Outpatient', 'code' => 'OP', 'coverage_limit' => '1000.00'])->assertCreated();
-        $this->getJson('/api/catalog')->assertOk()->assertJsonCount(1,'categories');
+        $this->postJson('/api/admin/catalog/categories', ['name' => 'Outpatient', 'code' => 'OP', 'coverage_limit' => '1000.00'])->assertCreated();
+        $this->getJson('/api/catalog')->assertOk()->assertJsonCount(1, 'categories');
         $this->getJson('/api/analytics')->assertOk();
     }
 }

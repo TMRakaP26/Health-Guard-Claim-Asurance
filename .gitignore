@@ -5,8 +5,10 @@ backups/
 artifacts/
 playwright-report/
 test-results/
+test-results-final/
 slide/
 .cache/
+.npm-cache/
 .terraform/
 *.tfstate
 *.tfstate.*
