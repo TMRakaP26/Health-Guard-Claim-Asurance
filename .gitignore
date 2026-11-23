@@ -5,6 +5,7 @@ backups/
 artifacts/
 playwright-report/
 test-results/
+slide/
 .cache/
 .terraform/
 *.tfstate

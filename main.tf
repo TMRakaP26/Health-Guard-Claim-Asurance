@@ -61,6 +61,18 @@ variable "app_admin_name" {
   default     = "Administrator"
 }
 
+variable "claim_user_email" {
+  description = "Email of the demo client (claim) account created during provisioning"
+  type        = string
+  default     = "claimer@example.test"
+}
+
+variable "claim_user_name" {
+  description = "Display name of the demo client (claim) account"
+  type        = string
+  default     = "Claim Tester"
+}
+
 # -------------------------
 # Random credentials
 # -------------------------
@@ -84,6 +96,13 @@ resource "random_password" "vm_password" {
 # Alphanumeric only: the value is interpolated into the provisioning script and
 # piped to the application's create-admin command, so avoid shell metacharacters.
 resource "random_password" "app_admin_password" {
+  length  = 28
+  special = false
+}
+
+# Claim (client) demo account: alphanumeric so it is safe to interpolate into
+# the cloud-init script and send to the public register endpoint as JSON.
+resource "random_password" "claim_user_password" {
   length  = 28
   special = false
 }
@@ -380,6 +399,21 @@ resource "azurerm_linux_virtual_machine" "main" {
     fi
 
     # -------------------------
+    # Create the demo claim user (client)
+    # -------------------------
+
+    # Public registration always creates a client, which is exactly the role
+    # that can create and manage claims. On a fresh rebuild the database is
+    # empty, so this succeeds; it is run after the admin step against the
+    # already-running stack. A validation error (e.g. duplicate email) is not
+    # fatal and provisioning continues.
+    curl -s -X POST http://127.0.0.1/api/register \
+      -H 'Content-Type: application/json' \
+      -H 'Accept: application/json' \
+      -d '{"name":"${var.claim_user_name}","email":"${var.claim_user_email}","password":"${random_password.claim_user_password.result}","password_confirmation":"${random_password.claim_user_password.result}"}' \
+      | tee -a /var/log/healthguard-claimuser.log
+
+    # -------------------------
     # Finish
     # -------------------------
 
@@ -447,6 +481,17 @@ output "app_admin_email" {
 output "app_admin_password" {
   description = "Password of the automatically created administrator"
   value       = random_password.app_admin_password.result
+  sensitive   = true
+}
+
+output "claim_user_email" {
+  description = "Demo client (claim) login created automatically during provisioning"
+  value       = var.claim_user_email
+}
+
+output "claim_user_password" {
+  description = "Password of the demo client (claim) account"
+  value       = random_password.claim_user_password.result
   sensitive   = true
 }
 
