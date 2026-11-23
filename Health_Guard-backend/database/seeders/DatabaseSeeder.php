@@ -15,17 +15,17 @@ class DatabaseSeeder extends Seeder
             throw new \RuntimeException('Demo seeding requires APP_ENV=local and DEMO_SEED_ENABLED=true.');
         }
         // Create analyst user
-        $analyst = User::firstOrCreate(['email' => 'analyst@healthguard.com'], [
+        $analyst = User::firstOrCreate(['email' => 'analyst@example.test'], [
             'name' => 'Sarah Analyst',
-            'email' => 'analyst@healthguard.com',
+            'email' => 'analyst@example.test',
             'password' => bcrypt('password'),
             'role' => 'analyst',
         ]);
 
         // Create client user
-        $client = User::firstOrCreate(['email' => 'client@healthguard.com'], [
+        $client = User::firstOrCreate(['email' => 'client@example.test'], [
             'name' => 'John Doe',
-            'email' => 'client@healthguard.com',
+            'email' => 'client@example.test',
             'password' => bcrypt('password'),
             'role' => 'client',
         ]);

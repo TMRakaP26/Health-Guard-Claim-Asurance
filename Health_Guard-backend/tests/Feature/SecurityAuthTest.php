@@ -133,7 +133,7 @@ class SecurityAuthTest extends TestCase
     public function test_demo_seeder_still_creates_both_roles(): void
     {
         $this->seed();
-        $this->assertDatabaseHas('users', ['email' => 'analyst@healthguard.com', 'role' => 'analyst']);
-        $this->assertDatabaseHas('users', ['email' => 'client@healthguard.com', 'role' => 'client']);
+        $this->assertDatabaseHas('users', ['email' => 'analyst@example.test', 'role' => 'analyst']);
+        $this->assertDatabaseHas('users', ['email' => 'client@example.test', 'role' => 'client']);
     }
 }
