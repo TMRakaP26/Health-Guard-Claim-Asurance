@@ -182,6 +182,31 @@
 
 ---
 
+## 2026-11-26 23:00 WIB — [QA] Two-factor authentication end to end
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** Not Started → Done (verification only, no code change)
+- **Branch / commit / PR:** `main`, deployed code `c3a2482`; documentation commit follows.
+- **Problem / feedback:** the QA core scenario covering 2FA had only unit coverage; no session had enabled 2FA on the deployment, logged in with a code, or checked replay and recovery behaviour.
+- **Goal / acceptance criteria:** enable 2FA, authenticate with TOTP, confirm a used code cannot be replayed, confirm recovery codes are single-use, and disable cleanly.
+- **Implementation:**
+  - No application change. A throwaway TOTP generator replicating `TwoFactorService` (same base32 decode, HMAC-SHA1, dynamic truncation) ran on the VM so codes used the server clock; requests went through `http://127.0.0.1/api`.
+  - `docs/QA.md`: new "Two-factor authentication — 26 November 2026" section; the TEST-05 core 7–10 row updated to reflect 2FA as executed.
+  - Database/API contract: none observed; setup returned `no-store`, repeat setup 409, disable required password plus a valid code and revoked tokens.
+- **Verification:**
+  - Setup returned a 32-character secret and an `otpauth://totp/HealthGuard:…` URI; confirm with the current code returned 200 and eight recovery codes.
+  - Password-only login returned 422; the next-window code returned a token; replaying that code returned 422.
+  - Recovery code 1 authenticated, replaying it returned 422, codes 2 and 4 authenticated.
+  - `DELETE /two-factor` returned 200 with `reauthenticate: true`; password-only login then worked and `two_factor_enabled` read `false`.
+  - Failed-login bursts returned 429, so some attempts were spaced out.
+  - Not run: email-based password reset (needs SMTP), screen reader, guarded account deletion.
+- **Evidence:** this entry and the QA 2FA record; the analyst test account is left with 2FA disabled.
+- **Risk / rollback:** none — verification only, account state restored.
+- **Known limitations / blockers:** none outstanding.
+- **Next action:** none.
+
+---
+
 ## Entry template (copy below this line for each change)
 
 ```md

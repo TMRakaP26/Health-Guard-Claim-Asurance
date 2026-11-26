@@ -180,6 +180,27 @@ The filter keys are `q`, `status`, `date_from`, `date_to` and `sort`; a request 
 is ignored rather than rejected, which is expected since those parameters are not part of the
 contract in `docs/API.md`. No product defect was found in this pass.
 
+## Two-factor authentication — 26 November 2026
+
+Driven against the deployment at `c3a2482` with a TOTP generator using the same algorithm as
+`TwoFactorService` on the analyst test account; the account was left with 2FA disabled.
+
+| Check | Observation |
+|---|---|
+| Setup | `POST /two-factor/setup` with the password returned a 32-character base32 secret and an `otpauth://totp/HealthGuard:…` URI; the response was `no-store` |
+| Confirm | The code from the current window returned 200 and eight recovery codes |
+| Login without a code | 422 `Enter a valid, unused authenticator or recovery code.` |
+| Login with a code | The next-window code authenticated and returned a token |
+| TOTP replay | Re-sending the same code failed 422 — the stored counter rejects reuse |
+| Recovery codes | The first code authenticated; reusing it failed 422; the second and fourth codes each authenticated |
+| Repeat setup | 409 while 2FA was already enabled |
+| Disable | `DELETE /two-factor` with password and a recovery code returned 200 with `reauthenticate: true` |
+| After disable | Password-only login works again and `two_factor_enabled` is `false` |
+| Login throttling | Bursts of failed logins returned 429 `Too Many Attempts.`, so a couple of attempts had to be spaced out |
+
+Account recovery by email (forgot/reset password) still depends on SMTP configuration and was
+not exercised.
+
 ## Manual execution worksheet
 
 Use disposable data and record the tested revision, date/time (Asia/Jakarta), tester, OS,
@@ -191,7 +212,7 @@ must not be treated as a pass. Do not put real patient information into screensh
 |---|---|---|
 | TEST-05 core 1–3 | Registration errors, persisted profile/photo, draft resume and leave/stay | Pending manual execution |
 | TEST-05 core 4–6 | Upload failure/retry, ownership, assignment conflict, messages, document requests and all decisions | Pending manual execution |
-| TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Partially executed 26 Nov 2026: 30 records across two pages, status/search/date filters, pagination and filtered exports all verified (see volume record); admin payment observed earlier; account lifecycle, 2FA and guarded deletion not executed |
+| TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Partially executed 26 Nov 2026: 30 records across two pages, status/search/date filters, pagination and filtered exports verified (volume record); admin payment observed earlier; TOTP setup, login, replay and recovery codes verified (2FA record); email/reset mail and guarded deletion still not executed |
 | TEST-05 state handling | Empty lists, throttled loading, offline error/retry, duplicate-action prevention, interrupted uploads and expired session | Pending manual execution |
 | UX-10 client | Keyboard login, drawer, four-step form (including Next/Back focus), native file picker, document viewer, history/pagination | Partially executed 26 Nov 2026: keyboard login and four-step edit/resubmit observed; drawer, native picker and pagination still automated-only |
 | UX-10 analyst | Keyboard queue, assignment, notes/partial amount, decision dialog trap, Escape and return focus | Partially executed 26 Nov 2026: decision select, conditional amount field, dialog trap, Escape, focus return and save all observed (see execution record). Queue/assignment still only automated |
