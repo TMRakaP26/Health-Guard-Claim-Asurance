@@ -35,6 +35,16 @@ class SecurityAuthTest extends TestCase
         $response->assertJsonMissingPath('trace')->assertJsonMissingPath('exception');
     }
 
+    public function test_unauthenticated_api_requests_return_json_401_without_accept_header(): void
+    {
+        // A browser (or curl without Accept) must not fall through to the missing
+        // `login` route, which used to surface as a 500 Server Error.
+        $this->get('/api/claims')->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
+        $this->get('/api/claims/CLM-2026-001/documents/1/download')
+            ->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
+        $this->getJson('/api/claims')->assertUnauthorized();
+    }
+
     public function test_failed_logins_are_throttled(): void
     {
         $payload = ['email' => 'unknown@example.test', 'password' => 'wrong-password'];

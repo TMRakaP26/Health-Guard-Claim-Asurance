@@ -3,6 +3,7 @@
 use App\Http\Middleware\ActiveUser;
 use App\Http\Middleware\AuditRequest;
 use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -26,6 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
         if ($hosts) {
             $middleware->trustHosts(at: array_map(fn ($host) => '^'.preg_quote($host, '/').'$', $hosts), subdomains: false);
         }
+        // Framework default redirects guests to route('login'), which this
+        // Sanctum-only API never defines: resolving it throws a routing error
+        // and turns an unauthenticated request into a 500. api/* renders JSON
+        // 401 below, so no guest redirect target is needed.
+        $middleware->redirectGuestsTo(null);
         $middleware->api(append: [AuditRequest::class]);
         $middleware->alias([
             'role' => RoleMiddleware::class,
@@ -38,6 +44,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return false; // SQL bindings can contain patient details or credentials.
         });
+        // This API has no `login` route. Without this handler a browser-style
+        // request (no Accept: application/json) is redirected to that missing
+        // route while rendering the auth failure and returns 500 instead of 401.
+        $exceptions->render(
+            fn (AuthenticationException $error, Request $request) => $request->is('api/*')
+                ? response()->json(['message' => 'Unauthenticated.'], 401)
+                : null,
+        );
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
