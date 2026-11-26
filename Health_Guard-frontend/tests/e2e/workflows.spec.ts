@@ -66,6 +66,9 @@ test("client submits, analyst requests information, client resubmits, analyst ap
   await page.getByRole("button", { name: "Kirim pengajuan" }).click();
   await expect(page.locator(".page-header .badge")).toHaveText("Pending");
   await analyst.reload();
+  await analyst
+    .getByRole("combobox", { name: /^Status/ })
+    .selectOption("Approved");
   await analyst.getByRole("button", { name: "Tinjau keputusan" }).click();
   await expect(analyst.getByRole("dialog")).toBeVisible();
   expect(
