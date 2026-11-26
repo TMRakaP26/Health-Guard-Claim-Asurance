@@ -91,6 +91,26 @@
 
 ---
 
+## 2026-11-26 21:45 WIB — [QA] Interactive keyboard and responsive observations
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** In Review → Done (documentation only)
+- **Branch / commit / PR:** `main`; documentation commit follows this entry. Deployed code unchanged (`70ac58d`).
+- **Problem / feedback:** the release gate claimed keyboard and responsive behaviour on the strength of Playwright runs alone; no interactive session had been recorded, and the QA worksheet still showed every manual row as pending.
+- **Goal / acceptance criteria:** exercise the analyst decision dialog, focus handling and the four target widths interactively on the deployment and record what was actually seen, without presenting unrun assisted-technology checks as passed.
+- **Implementation:**
+  - `docs/QA.md`: new "Execution record — 26 November 2026" section; UX-10 analyst/client/visual worksheet rows changed from "Pending manual execution" to a dated partial status with the gap that remains.
+  - No application code changed; the defaults and dialog behaviour examined were deliberately left as they are because they are covered by `keyboard.spec.ts` and `claims-matrix.spec.ts` and are not required by the improvements backlog.
+  - Database/API contract: none.
+- **Verification:** real key presses against `http://20.212.0.113` at `70ac58d` — keyboard login; `ArrowDown` status change with the conditional amount field (`max` = claim amount); native `<dialog>` named `Konfirmasi keputusan` with summary content; four `Tab` presses contained; `Escape` closing and returning focus to the trigger; `outline: solid 2.4px`; no page overflow or clipped elements at 360/390/768/1440 px.
+  - Not executed: NVDA/VoiceOver, real 200% browser zoom, native OS file picker, OS-level reduced motion.
+- **Evidence:** this entry and the QA execution record; API read-back of the resulting claim state.
+- **Risk / rollback:** none — documentation only.
+- **Known limitations / blockers:** `CLM-2026-009` became `Approved` (Rp 800.000) during the session when `Enter` activated the focused confirm button; the transition is legal and the record is consistent, so it stands as disposable test data.
+- **Next action:** decide separately whether the analyst decision form should start with no status selected.
+
+---
+
 ## Entry template (copy below this line for each change)
 
 ```md

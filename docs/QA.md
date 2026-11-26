@@ -110,6 +110,41 @@ and verify the summary, inline error and focus. Automated checks cover removal, 
 focus, and selective retry; upload-recovery.spec.ts adds the browser/API regression. The manual
 flow remains outstanding.
 
+## Execution record — 26 November 2026 (interactive browser session)
+
+Environment: Windows desktop, packaged Chromium through the local browser panel (no screen
+reader installed), live deployment `http://20.212.0.113` at revision `70ac58d`, Indonesian UI
+with an English pass, accounts `test.analyst@example.test` / `test.client@example.test`,
+disposable claims `CLM-2026-008` and `CLM-2026-009`. Input was real key presses and typing in a
+browser, not Playwright scripts; this is closer to manual use but still not a human/AT session.
+
+| Check | Result | Observation |
+|---|---|---|
+| Keyboard login | Passed | Email and password typed, `Enter` in the password field submitted and redirected to the requested page |
+| ID/EN toggle | Passed | Labels, headings, filters and nav switched; `lang` attribute followed; typed client form values survived the switch |
+| Analyst decision reachable and changeable by keyboard | Passed | Select focused by keyboard, `ArrowDown` moved `Approved` → `Partially Approved`; the conditional `Nominal disetujui` field appeared with `max` equal to the claim amount |
+| Decision confirmation dialog | Passed | Native `<dialog>` opened by `Enter` on the trigger, accessible name `Konfirmasi keputusan`, summary showed claim → status, notes and `Rp 500.000`, initial focus on the non-destructive `Kembali` |
+| Dialog focus trap | Passed | Four `Tab` presses stayed between the two dialog buttons; matches `keyboard.spec.ts`, which asserts eight Tab/Shift+Tab presses |
+| Escape closes and restores focus | Passed | Dialog closed, no decision written, focus returned to `Tinjau keputusan` |
+| Visible focus indicator | Passed | Focused trigger computed `outline: solid 2.4px` |
+| Clipping at 360/390/768/1440 px | Passed | No page-level horizontal overflow at any width (document width below viewport); no clipped leaf elements; the claims table scrolls inside its own container (302 of 681 px visible at 390) |
+| Decision persistence | Passed | `Enter` on the focused `Konfirmasi & simpan` wrote the decision: badge became `Approved`, `approved_amount` = claim amount, a new `status_changed` history event appeared, and the list reflected it |
+| Screen reader announcements (BL-12) | Not executed | No NVDA/VoiceOver available; cannot be inferred from axe or DOM inspection |
+| Browser zoom 200%, native file picker, OS reduced motion | Not executed | Viewport resizing is not zoom, and scripted uploads are not the native picker |
+
+**Observations that are not failures.** The analyst decision form defaults to `Approved`, so a
+stray `Enter` in that form opens an approve confirmation; the dialog focuses `Kembali` first,
+which keeps the accidental confirm one deliberate key away. That is how `CLM-2026-009` became
+`Approved` during this session: the tab order after four presses landed on `Konfirmasi & simpan`
+and the next key activated it. The transition itself is legal (assigned analyst, `Pending` →
+`Approved`) and the stored result was consistent everywhere, so it is recorded here as an
+observation about defaults rather than a defect. A decision form that starts with no status
+selected would remove the hazard; it is not required by [HEALTH_GUARD_IMPROVEMENTS.md](HEALTH_GUARD_IMPROVEMENTS.md)
+and was not changed.
+
+The 21 November conclusion still holds: TEST-05, UX-10 and BL-12 are released on the
+revised automated scope, and the manual rows below are reference material, not blockers.
+
 ## Manual execution worksheet
 
 Use disposable data and record the tested revision, date/time (Asia/Jakarta), tester, OS,
@@ -123,9 +158,9 @@ must not be treated as a pass. Do not put real patient information into screensh
 | TEST-05 core 4–6 | Upload failure/retry, ownership, assignment conflict, messages, document requests and all decisions | Pending manual execution |
 | TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Pending manual execution |
 | TEST-05 state handling | Empty lists, throttled loading, offline error/retry, duplicate-action prevention, interrupted uploads and expired session | Pending manual execution |
-| UX-10 client | Keyboard login, drawer, four-step form (including Next/Back focus), native file picker, document viewer, history/pagination | Pending manual execution |
-| UX-10 analyst | Keyboard queue, assignment, notes/partial amount, decision dialog trap, Escape and return focus | Pending manual execution |
-| UX-10 visual | 360/390/768/1440 px; actual browser zoom 200%; focus indicator, clipping, independent table scroll, reduced motion | Pending manual execution |
+| UX-10 client | Keyboard login, drawer, four-step form (including Next/Back focus), native file picker, document viewer, history/pagination | Partially executed 26 Nov 2026: keyboard login and four-step edit/resubmit observed; drawer, native picker and pagination still automated-only |
+| UX-10 analyst | Keyboard queue, assignment, notes/partial amount, decision dialog trap, Escape and return focus | Partially executed 26 Nov 2026: decision select, conditional amount field, dialog trap, Escape, focus return and save all observed (see execution record). Queue/assignment still only automated |
+| UX-10 visual | 360/390/768/1440 px; actual browser zoom 200%; focus indicator, clipping, independent table scroll, reduced motion | Partially executed 26 Nov 2026: four widths, focus indicator and independent table scroll observed; real 200% browser zoom and OS reduced motion not executed |
 | BL-12 form | Reader announces labels, current step heading, required/invalid fields and error summary in ID/EN | Pending NVDA/VoiceOver execution |
 | BL-12 async/dialogs | Reader announces loading, success/error, dialog name, restored focus and distinct conversation/history landmarks | Pending NVDA/VoiceOver execution |
 
