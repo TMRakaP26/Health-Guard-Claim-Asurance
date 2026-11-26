@@ -1,6 +1,6 @@
 # Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
-Last updated: 2026-11-22 (implementation audit: 64/64 done under revised automated QA acceptance; evidence is recorded
+Last updated: 2026-11-26 (backlog closed: 64/64 done under revised automated QA acceptance, decisions resolved; evidence is recorded
 in `docs/IMPLEMENTATION.md`).
 
 **Audience:** implementation agents working on this repository.
@@ -44,6 +44,10 @@ dialog focus and responsive checks; BL-12 by axe and localized semantic/focus as
 The earlier 61/64 status and manual dependencies remain in dated historical records.
 Completion of this backlog is not a claim of production cutover or full accessibility
 certification. Operational configuration and verification limits remain documented.
+
+**Closure — 26 November 2026:** no ticket in this document is open or blocked. Section 9 now
+records the resolutions that shipped instead of open questions, and section 11 lists what stays
+outside this backlog as operational acceptance work rather than pending tickets.
 
 ---
 
@@ -790,24 +794,28 @@ A change is complete only when:
 6. **Do not store passwords, API tokens, or full document contents in logs.**
 7. **Preserve API compatibility** unless the PR explicitly documents a breaking change and updates the frontend/docs/tests.
 8. **Keep changes small and reviewable.** One ticket per PR where possible.
-9. **Report blocked decisions** instead of silently inventing product rules. The open decisions are listed below.
+9. **Report blocked decisions** instead of silently inventing product rules. Section 9 records how the earlier product decisions were resolved; treat those resolutions as the current contract and raise a new question rather than reversing one silently.
 
 ---
 
-## 9. Open decisions for the product owner
+## 9. Decisions resolved during implementation
 
-| Decision | Recommended default |
+Every decision below was answered by the shipped behaviour. The table records the resolution and
+where it is enforced, so a future change can revisit the trade-off deliberately instead of
+guessing the original intent. None of these is still open.
+
+| Decision | Resolution and where it is enforced |
 |---|---|
-| Database engine | MySQL 8.4 |
-| Can any analyst decide any claim, or only the assigned analyst? | Only the assigned analyst; add an admin override later |
-| Should `Needs Info` resubmission keep or clear old analyst notes? | Keep them as history; show the latest request prominently; clear the current note only if the product explicitly wants it |
-| Should rejected claims be assignable to another analyst after resubmission? | Keep the original assignment; let the analyst re-review; add reassignment later |
-| Should documents be private? | Yes, private by default with authenticated/signed access |
-| Should profile photos be public? | Acceptable for demo; move private if privacy requirements demand it |
-| Should Quick Sign In remain? | Remove password storage; keep email prefilling only, or remove the feature |
-| Real-time notifications now or later? | Keep polling for now; add SSE/WebSocket in the backlog |
-| What is the maximum claim amount? | Define a business limit (for example `decimal(12,2)` and a max validation) |
-| Should claim history be editable/deletable? | No; immutable audit trail |
+| Database engine | **MySQL 8.4** — `db` service in `compose.yaml` with `DB_CONNECTION=mysql`; SQLite remains local/test/import only. |
+| Can any analyst decide any claim, or only the assigned analyst? | **Only the assigned analyst** — `ClaimPolicy::decide()` plus the lock in `ClaimService::decide()`; admins have no decision endpoint. An admin override is still not built. |
+| Should `Needs Info` resubmission keep or clear old analyst notes? | **Kept** — `ClaimService::resubmit()` leaves the current note in place and stores the pre-resubmit snapshot in the history metadata `previous`. |
+| Should rejected claims be assignable to another analyst after resubmission? | **No reassignment** — resubmit preserves `assigned_to` and no reassignment endpoint exists. |
+| Should documents be private? | **Yes** — private disk, authenticated download route, `/storage/documents/` refused by the web server. |
+| Should profile photos be public? | **Yes, public disk** — accepted because they carry no claim data; move private if the privacy policy changes. |
+| Should Quick Sign In remain? | **Kept, password-free** — `frontend/src/app/utils/cookies.ts` stores name/email/role only; the password is always required at login. |
+| Real-time notifications now or later? | **Polling by default (30 s)**; SSE behind `FEATURE_REALTIME`, email behind `FEATURE_EMAIL`. |
+| What is the maximum claim amount? | **99,999,999.99 IDR** — `decimal(10,2)`, at most two decimals, and partial approval is re-validated after the row lock. |
+| Should claim history be editable/deletable? | **No** — no edit/delete endpoints; rows change only when an authorized retention deletion removes the parent claim. |
 
 ---
 
@@ -863,12 +871,33 @@ A change is complete only when:
 
 ---
 
-## 11. Appendix - audit status (2026-11-19)
+## 11. Appendix - audit status
+
+### Baseline re-check (2026-11-19)
 
 The original baseline limitations were re-checked against the current code. The following are now resolved: private claim documents; immutable claim history with UI; polling default with optional SSE and email; deep-linked claim detail; server-side pagination/filter/stats/export; real profile data; Needs Info resubmission; assigned-analyst-only decisions; client-only public registration; password-free Quick Sign In; `_gen/` removal; frontend typecheck/lint/unit/E2E scripts; CI and MySQL backups.
 
 At the time of this historical audit, verification gaps included validation boundaries and the
-expanded browser matrix. TEST-02 and TEST-04 now have passing evidence; the current outstanding
-items are manual QA, manual keyboard/visual verification and the screen-reader audit. The old
+expanded browser matrix. TEST-02 and TEST-04 now have passing evidence; the items still listed as
+outstanding at that date were manual QA, manual keyboard/visual verification and the screen-reader
+audit, which the 22 November amendment replaced with automated checks and the closure entry below
+keeps outside this backlog. The old
 backend file_get_contents warnings were resolved. See the dated evidence in
 `docs/IMPLEMENTATION.md`; old PR/CI results are not assertions about the latest remote revision.
+
+### Backlog closure (2026-11-26)
+
+Every ticket in sections 5.1-5.8 is `[x]`, section 9 carries resolutions instead of questions, and
+nothing is `[~]` or `[!]`. The gaps below are outside this backlog and were not executed for this
+closure, so they are recorded as operational acceptance work, not as passed checks:
+
+| Residual item | Why it is not a ticket here | Owner |
+| --- | --- | --- |
+| NVDA/VoiceOver listening, native OS file picker, real 200% browser zoom | Excluded by the 22 November automated-QA amendment; automation covers keyboard, axe, focus and layout overflow instead | Product owner / accessibility reviewer |
+| MySQL 8.4 Compose, concurrency, persistence and restore re-check on the current revision | Last full proof predates later documentation-only commits and needs a Docker-capable runner | Operator |
+| SMTP provider, retention duration, real provider/policy catalog, operational payment entry | Configuration decisions for the deploying organization, not code | Operator / product owner |
+| Load and benchmark testing at production data volume | No production dataset; only basic InnoDB contention and index checks exist | Operator |
+| Cutover of live data | Needs a maintenance window and reconciliation against a real backup | Operator |
+
+Reopen a closed ticket only if one of these becomes in-scope; add it with fresh acceptance
+criteria and evidence in `docs/IMPLEMENTATION.md` instead of reviving the old entry.

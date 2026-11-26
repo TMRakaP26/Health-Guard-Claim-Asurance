@@ -33,6 +33,30 @@ export function ClaimList() {
     if (xlsx) {
       const XLSX = await import("xlsx");
       const book = XLSX.read(r.data, { type: "string", raw: true });
+      // The server streams plain decimals; keep them as numeric cells with a
+      // display format so Excel does not store amounts as text.
+      for (const name of book.SheetNames) {
+        const sheet = book.Sheets[name];
+        if (!sheet?.["!ref"]) continue;
+        const range = XLSX.utils.decode_range(sheet["!ref"]);
+        const amountColumns = new Map<number, string>();
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const title = String(
+            sheet[XLSX.utils.encode_cell({ r: range.s.r, c })]?.v ?? "",
+          );
+          if (title.endsWith("(IDR)")) amountColumns.set(c, title);
+        }
+        for (let r = range.s.r + 1; r <= range.e.r; r++) {
+          for (const c of amountColumns.keys()) {
+            const address = XLSX.utils.encode_cell({ r, c });
+            const cell = sheet[address];
+            const raw = String(cell?.v ?? "").trim();
+            const value = Number(raw.replace(/\.(?=\d{3}\b)/g, "").replace(",", "."));
+            if (!raw || !Number.isFinite(value)) continue;
+            sheet[address] = { t: "n", v: value, z: "#,##0.00" };
+          }
+        }
+      }
       XLSX.writeFile(book, "healthguard-claims.xlsx");
     } else
       saveBlob(
