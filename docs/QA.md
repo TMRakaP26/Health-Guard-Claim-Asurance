@@ -161,6 +161,25 @@ control that held focus instead of a null label. Run `45842080346` on `c3a2482` 
 still requires the control to be reached by `Tab`; the retry only tolerates a page that settles
 after the first sweep.
 
+## Volume, filters and export — 26 November 2026
+
+Live deployment at `c3a2482`, disposable data created through the API and checked through both
+the UI and the export endpoint. 30 claims exist; the test client owns 23 and sees only those,
+so role scoping held while the volume was raised past one page.
+
+| Check | Observation |
+|---|---|
+| Pagination | Page 1 shows 20 rows, page 2 shows 10, indicator reads `1 / 2` then `2 / 2`; the filtered-total statistic stays 30 on both pages |
+| Status filter | `status=Rejected` renders 4 rows with `Klaim sesuai filter 4`, `Rp 1.506.000` submitted, `Rp 0` approved, pagination `1 / 1`; the API reports the same 4 in `by_status` |
+| Search filter | `q=Volume` gives 21 rows in the list and 21 data rows in the export; `q=RS Volume 9` gives 1 in both |
+| Date filter | `date_from=date_to=2026-11-26` gives 30 in list and export; 25 Nov gives 0 in both; 27–30 Nov gives 0 in both; `date_from` after `date_to` returns 422 |
+| Export scope | Data rows by filter: all 30, `Rejected` 4, `Pending` 15, `Approved` 4, search 21. Adding `page=2` still exports all 30, so export covers the filtered set rather than the visible page |
+| Currency in export | Amount columns are numeric cells with `#,##0.00` (verified separately on the workbook downloaded from the app) |
+
+The filter keys are `q`, `status`, `date_from`, `date_to` and `sort`; a request using `from`/`to`
+is ignored rather than rejected, which is expected since those parameters are not part of the
+contract in `docs/API.md`. No product defect was found in this pass.
+
 ## Manual execution worksheet
 
 Use disposable data and record the tested revision, date/time (Asia/Jakarta), tester, OS,
@@ -172,7 +191,7 @@ must not be treated as a pass. Do not put real patient information into screensh
 |---|---|---|
 | TEST-05 core 1–3 | Registration errors, persisted profile/photo, draft resume and leave/stay | Pending manual execution |
 | TEST-05 core 4–6 | Upload failure/retry, ownership, assignment conflict, messages, document requests and all decisions | Pending manual execution |
-| TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Pending manual execution |
+| TEST-05 core 7–10 | More than 20 records, filtered export, admin/payment, account lifecycle/2FA, guarded deletion | Partially executed 26 Nov 2026: 30 records across two pages, status/search/date filters, pagination and filtered exports all verified (see volume record); admin payment observed earlier; account lifecycle, 2FA and guarded deletion not executed |
 | TEST-05 state handling | Empty lists, throttled loading, offline error/retry, duplicate-action prevention, interrupted uploads and expired session | Pending manual execution |
 | UX-10 client | Keyboard login, drawer, four-step form (including Next/Back focus), native file picker, document viewer, history/pagination | Partially executed 26 Nov 2026: keyboard login and four-step edit/resubmit observed; drawer, native picker and pagination still automated-only |
 | UX-10 analyst | Keyboard queue, assignment, notes/partial amount, decision dialog trap, Escape and return focus | Partially executed 26 Nov 2026: decision select, conditional amount field, dialog trap, Escape, focus return and save all observed (see execution record). Queue/assignment still only automated |

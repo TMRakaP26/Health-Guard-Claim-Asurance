@@ -158,6 +158,30 @@
 
 ---
 
+## 2026-11-26 22:30 WIB — [QA] Volume, filters and export at 30 records
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** Not Started → Done (verification only, no code change)
+- **Branch / commit / PR:** `main`, deployed code `c3a2482`; documentation commit follows.
+- **Problem / feedback:** "create more than 20 records, filter by text/date/status, page through them, statistics/export must reflect all filtered records" had only been covered by unit tests with mocked pages.
+- **Goal / acceptance criteria:** observe the real list, statistics and exports above one page of data, with filters applied.
+- **Implementation:**
+  - No application change. 21 disposable claims were created through `POST /api/claims` and four decisions recorded through `PATCH /api/claims/{id}/status` so several statuses existed.
+  - `docs/QA.md`: new "Volume, filters and export — 26 November 2026" section; the TEST-05 core 7–10 worksheet row moved to a dated partial status.
+  - Database/API contract: none.
+- **Verification:**
+  - UI: 20 rows on page 1 and 10 on page 2 with indicator `1 / 2` → `2 / 2`; filtered total held at 30; `status=Rejected` gave 4 rows and `Rp 1.506.000` submitted / `Rp 0` approved with `1 / 1` pagination; `q=Volume` gave 21.
+  - Export endpoint: data rows all 30, `Rejected` 4, `Pending` 15, `Approved` 4, search 21, single-record search 1, and `page=2` still 30; each figure matched the list total for the same query.
+  - Date filter: 26 Nov 30, 25 Nov 0, 27–30 Nov 0, reversed range 422.
+  - Scoping: the test client's list reports 23 of the 30 claims.
+  - Not run: XLSX download for these filters (format verified earlier), screen reader, 2FA, account deletion.
+- **Evidence:** this entry and the QA volume record.
+- **Risk / rollback:** none — verification only. The extra claims stay in the demo database.
+- **Known limitations / blockers:** the demo database now holds 30 claims plus the `test.*` accounts; `terraform destroy` removes the environment.
+- **Next action:** none.
+
+---
+
 ## Entry template (copy below this line for each change)
 
 ```md
