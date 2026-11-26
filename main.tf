@@ -505,6 +505,162 @@ locals {
         }
     }
   PHP
+
+  # 10-minute pull-based deployment. The checkout is disposable: it is reset
+  # to GitHub exactly, and only the containers whose source changed are
+  # rebuilt. The last successfully deployed SHA is tracked separately so a
+  # failed build is retried on the next tick instead of being skipped.
+  auto_update_script = <<-BASH
+    #!/bin/bash
+    set -Eeuo pipefail
+
+    REPO=/opt/healthguard
+    STATE_DIR=/var/lib/healthguard-sync
+    STATE_FILE=$STATE_DIR/deployed-sha
+    LOG=/var/log/healthguard-sync.log
+    BRANCH=main
+
+    log() {
+      printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG"
+    }
+
+    # Never overlap a manual run with the timer, or two timer ticks.
+    exec 9>/run/healthguard-sync.lock
+    if ! flock -n 9; then
+      log "Another sync is already running; skipping."
+      exit 0
+    fi
+
+    # Initial provisioning creates the accounts and demo data last.
+    if [ ! -f /var/log/healthguard-deployment-complete ]; then
+      log "Provisioning is still running; skipping."
+      exit 0
+    fi
+
+    mkdir -p "$STATE_DIR"
+    cd "$REPO"
+
+    HEAD_SHA="$(git rev-parse HEAD)"
+    if [ -f "$STATE_FILE" ]; then
+      DEPLOYED_SHA="$(cat "$STATE_FILE")"
+    else
+      DEPLOYED_SHA="$HEAD_SHA"
+      printf '%s\n' "$DEPLOYED_SHA" > "$STATE_FILE"
+    fi
+
+    if ! git fetch --depth 1 origin "$BRANCH" >>"$LOG" 2>&1; then
+      log "git fetch failed; will retry on the next tick."
+      exit 1
+    fi
+
+    NEW_SHA="$(git rev-parse FETCH_HEAD)"
+
+    if [ "$NEW_SHA" = "$DEPLOYED_SHA" ]; then
+      log "Already deployed $NEW_SHA."
+      exit 0
+    fi
+
+    log "Deploying $DEPLOYED_SHA -> $NEW_SHA"
+
+    if ! CHANGED="$(git diff --name-only "$DEPLOYED_SHA" "$NEW_SHA" 2>>"$LOG")"; then
+      log "Could not diff the deployed commit; rebuilding both services."
+      BUILD_BACKEND=true
+      BUILD_FRONTEND=true
+    else
+      BUILD_BACKEND=false
+      BUILD_FRONTEND=false
+      while IFS= read -r path; do
+        case "$path" in
+          Health_Guard-backend/*) BUILD_BACKEND=true ;;
+          Health_Guard-frontend/*) BUILD_FRONTEND=true ;;
+          compose.yaml|compose.yml|docker-compose.yml)
+            BUILD_BACKEND=true
+            BUILD_FRONTEND=true
+            ;;
+        esac
+      done <<< "$CHANGED"
+    fi
+
+    # The deployment checkout is not a workspace: make it match GitHub.
+    git reset --hard "$NEW_SHA" >>"$LOG" 2>&1
+
+    if ! $BUILD_BACKEND && ! $BUILD_FRONTEND; then
+      printf '%s\n' "$NEW_SHA" > "$STATE_FILE"
+      log "Only non-image files changed; code updated without a rebuild."
+      exit 0
+    fi
+
+    # One build at a time: the VM has 1 vCPU and 2 GB of RAM.
+    export COMPOSE_PARALLEL_LIMIT=1
+
+    if $BUILD_BACKEND; then
+      log "Building the backend image..."
+      if ! docker compose build backend >>"$LOG" 2>&1; then
+        log "Backend build failed; keeping the running containers. Will retry."
+        exit 1
+      fi
+    fi
+
+    if $BUILD_FRONTEND; then
+      log "Building the frontend image..."
+      if ! docker compose build frontend >>"$LOG" 2>&1; then
+        log "Frontend build failed; keeping the running containers. Will retry."
+        exit 1
+      fi
+    fi
+
+    log "Recreating changed containers..."
+    if ! docker compose up -d --wait --wait-timeout 2400 >>"$LOG" 2>&1; then
+      log "Container recreation failed. Will retry on the next tick."
+      exit 1
+    fi
+
+    printf '%s\n' "$NEW_SHA" > "$STATE_FILE"
+    log "Update complete at $(git rev-parse --short HEAD)."
+  BASH
+
+  auto_update_service = <<-UNIT
+    [Unit]
+    Description=HealthGuard auto-update from GitHub
+    After=docker.service network-online.target
+    Wants=network-online.target
+    ConditionPathExists=/var/log/healthguard-deployment-complete
+
+    [Service]
+    Type=oneshot
+    WorkingDirectory=/opt/healthguard
+    Environment=COMPOSE_PARALLEL_LIMIT=1
+    ExecStart=/usr/local/bin/healthguard-sync
+    Nice=10
+    IOSchedulingClass=best-effort
+    IOSchedulingPriority=7
+    TimeoutStartSec=45min
+  UNIT
+
+  auto_update_timer = <<-UNIT
+    [Unit]
+    Description=Check GitHub for HealthGuard updates every 10 minutes
+
+    [Timer]
+    OnActiveSec=10min
+    OnUnitActiveSec=10min
+    AccuracySec=30s
+    Unit=healthguard-sync.service
+
+    [Install]
+    WantedBy=timers.target
+  UNIT
+
+  auto_update_logrotate = <<-CONF
+    /var/log/healthguard-sync.log {
+        weekly
+        rotate 4
+        compress
+        missingok
+        notifempty
+        copytruncate
+    }
+  CONF
 }
 
 # -------------------------
@@ -679,13 +835,22 @@ resource "azurerm_linux_virtual_machine" "main" {
 
     mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
-    printf '%s' '${base64encode(local.deploy_status_page)}' | base64 -d > "$STATUS_DIR/index.html"
-    printf '%s' '${base64encode(local.deploy_status_nginx)}' | base64 -d > /etc/nginx/sites-available/healthguard
+    printf '%s' '${base64encode(local.deploy_status_page)}' | base64 -d | tr -d '\r' > "$STATUS_DIR/index.html"
+    printf '%s' '${base64encode(local.deploy_status_nginx)}' | base64 -d | tr -d '\r' > /etc/nginx/sites-available/healthguard
 
     # The demo seeder is injected into the backend container later, after the
     # database is migrated and the three primary accounts exist.
-    printf '%s' '${base64encode(local.demo_seeder_php)}' | base64 -d > /opt/healthguard-deploy-seeder.php
+    printf '%s' '${base64encode(local.demo_seeder_php)}' | base64 -d | tr -d '\r' > /opt/healthguard-deploy-seeder.php
     chmod 600 /opt/healthguard-deploy-seeder.php
+
+    # Pull-based auto-update: the timer is enabled after provisioning ends.
+    printf '%s' '${base64encode(local.auto_update_script)}' | base64 -d | tr -d '\r' > /usr/local/bin/healthguard-sync
+    chmod 755 /usr/local/bin/healthguard-sync
+
+    printf '%s' '${base64encode(local.auto_update_service)}' | base64 -d | tr -d '\r' > /etc/systemd/system/healthguard-sync.service
+    printf '%s' '${base64encode(local.auto_update_timer)}' | base64 -d | tr -d '\r' > /etc/systemd/system/healthguard-sync.timer
+    printf '%s' '${base64encode(local.auto_update_logrotate)}' | base64 -d | tr -d '\r' > /etc/logrotate.d/healthguard-sync
+    chmod 644 /etc/systemd/system/healthguard-sync.service /etc/systemd/system/healthguard-sync.timer /etc/logrotate.d/healthguard-sync
 
     chmod 755 "$STATUS_DIR"
     chmod 644 "$STATUS_DIR/index.html"
@@ -717,7 +882,8 @@ resource "azurerm_linux_virtual_machine" "main" {
       ca-certificates \
       curl \
       git \
-      gnupg
+      gnupg \
+      logrotate
 
     rm -f /etc/nginx/sites-enabled/default
     ln -sf /etc/nginx/sites-available/healthguard /etc/nginx/sites-enabled/healthguard
@@ -935,6 +1101,19 @@ resource "azurerm_linux_virtual_machine" "main" {
     echo "HealthGuard deployment completed at $(date -Is)" \
       > /var/log/healthguard-deployment-complete
 
+    # -------------------------
+    # Automatic GitHub updates
+    # -------------------------
+
+    # Start from the commit that is actually running, so the first tick is a
+    # no-op. A failed future build keeps this file unchanged and is retried.
+    install -d -m 755 /var/lib/healthguard-sync
+    git -C /opt/healthguard rev-parse HEAD > /var/lib/healthguard-sync/deployed-sha
+
+    status auto-update 99 "Enabling automatic GitHub updates every 10 minutes"
+    systemctl daemon-reload
+    systemctl enable --now healthguard-sync.timer
+
     status ready 100 "HealthGuard is live at http://$PUBLIC_IP" true
 
     echo "HealthGuard is deployed."
@@ -1052,6 +1231,15 @@ output "demo_accounts" {
     "Demo analysts : analyst1@example.test, analyst2@example.test, analyst3@example.test",
     "Shared password: ${nonsensitive(random_password.demo_password.result)}",
   ])
+}
+
+output "auto_update" {
+  description = "Automatic GitHub deployment on the VM"
+  value       = "Enabled: origin/main is checked every 10 minutes; only containers whose source changed are rebuilt."
+}
+
+output "auto_update_log_command" {
+  value = "az vm run-command invoke --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_linux_virtual_machine.main.name} --command-id RunShellScript --scripts 'systemctl list-timers healthguard-sync.timer --no-pager; tail -n 100 /var/log/healthguard-sync.log'"
 }
 
 output "ssh_command" {

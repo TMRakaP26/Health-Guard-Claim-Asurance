@@ -369,7 +369,7 @@ Bukti **22 November 2026**: backend 167 tes lulus, 2 skip khusus database, 859 a
 
 [main.tf](main.tf) mendefinisikan resource group, VNet/subnet, NSG, public IP, NIC dan VM Ubuntu 24.04. Bootstrap memasang Docker, clone repository, build stack, mengubah frontend menjadi publik pada port 80, lalu mencoba membuat admin. Ini berbeda dari Compose standar yang bind loopback.
 
-VM memakai autentikasi password; SSH dibuka jika `ssh_allowed_cidr` diisi. Bootstrap belum memasang TLS; state Terraform berisi nilai sensitif. Jalur ini membutuhkan review operator. Update repository tidak otomatis memperbarui VM yang sudah ada. README ini tidak menjalankan provisioning atau menyatakan kondisi deployment Azure saat ini.
+VM memakai autentikasi password; SSH dibuka jika `ssh_allowed_cidr` diisi. Bootstrap belum memasang TLS; state Terraform berisi nilai sensitif. Jalur ini membutuhkan review operator. VM memeriksa `origin/main` setiap 10 menit melalui `healthguard-sync.timer`: hanya kontainer yang sumbernya berubah yang dibangun ulang, database dan volume tidak disentuh, dan SHA yang berhasil dipasang disimpan agar build gagal dicoba lagi. Log ada di `/var/log/healthguard-sync.log`. README ini tidak menjalankan provisioning atau menyatakan kondisi deployment Azure saat ini.
 
 ### Auto-sync Git opsional
 
