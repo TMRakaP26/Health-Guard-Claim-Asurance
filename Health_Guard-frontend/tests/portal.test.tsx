@@ -7,6 +7,7 @@ import { ClaimList } from "../src/app/portal/ClaimList";
 import { ClaimDetail } from "../src/app/portal/ClaimDetail";
 import { ClaimForm } from "../src/app/portal/ClaimForm";
 import { LocaleProvider } from "../src/app/portal/locale";
+import { useAuth } from "../src/app/state/AuthContext";
 import {
   formatAmount,
   normalizeAmount,
@@ -24,11 +25,12 @@ vi.mock("../src/app/api/client", () => ({
   },
 }));
 vi.mock("../src/app/state/AuthContext", () => ({
-  useAuth: () => ({
-    user: { id: 1, role: "client", name: "Patient" },
-    isLoading: false,
-  }),
+  useAuth: vi.fn(),
 }));
+const clientUser = {
+  user: { id: 1, role: "client", name: "Patient" },
+  isLoading: false,
+} as unknown as ReturnType<typeof useAuth>;
 const claim = {
   id: 1,
   claim_id: "CLM-2026-001",
@@ -61,7 +63,10 @@ function mount(element: React.ReactNode, path = "/claims") {
     </LocaleProvider>,
   );
 }
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(useAuth).mockReturnValue(clientUser);
+});
 function mockDetail(status = "Needs Info", history: unknown[] = []) {
   vi.mocked(api.get).mockImplementation(async (url) => ({
     data: String(url).includes("/history?")
@@ -73,6 +78,22 @@ function mockDetail(status = "Needs Info", history: unknown[] = []) {
           : { ...claim, status },
   }));
 }
+describe("analyst decision guard", () => {
+  it("requires an explicit decision instead of preselecting Approved", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 2, role: "analyst", name: "Analyst" },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useAuth>);
+    mockDetail("Pending");
+    mount(<ClaimDetail />, "/claims/CLM-2026-001");
+    const select = await screen.findByRole("combobox", { name: /Status/ });
+    expect(select).toHaveValue("");
+    expect(
+      within(select).getByRole("option", { name: "Pilih keputusan" }),
+    ).toBeDisabled();
+  });
+});
+
 describe("claim history and statuses", () => {
   it.each([
     "Pending",

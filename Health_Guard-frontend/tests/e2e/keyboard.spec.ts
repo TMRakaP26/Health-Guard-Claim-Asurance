@@ -159,6 +159,9 @@ test("keyboard client submission and analyst decision with native dialog focus",
     await expect(
       analyst.getByRole("heading", { name: "Keputusan analis" }),
     ).toBeVisible();
+    const status = analyst.getByRole("combobox", { name: /^Status/ });
+    await expect(status).toHaveValue("");
+    await status.selectOption("Approved");
     const opener = analyst.getByRole("button", { name: "Tinjau keputusan" });
     await activate(analyst, opener);
     const dialog = analyst.getByRole("dialog");

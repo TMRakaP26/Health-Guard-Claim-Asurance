@@ -51,7 +51,7 @@ export function ClaimDetail() {
   const payment = useQuery<{ data: Payment | null }>(
     catalog.data?.features.payments ? "/claims/" + id + "/payment" : null,
   );
-  const [decision, setDecision] = useState("Approved");
+  const [decision, setDecision] = useState("");
   const [confirmation, setConfirmation] = useState<Record<
     string,
     string
@@ -351,8 +351,12 @@ export function ClaimDetail() {
                     <select
                       name="status"
                       value={decision}
+                      required
                       onChange={(e) => setDecision(e.target.value)}
                     >
+                      <option value="" disabled>
+                        {t("Pilih keputusan", "Choose a decision")}
+                      </option>
                       {[
                         "Approved",
                         "Partially Approved",
