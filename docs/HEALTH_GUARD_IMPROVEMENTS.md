@@ -291,14 +291,14 @@ Keep an **append-only** Markdown file at project root named `HEALTH_GUARD_PROGRE
 
 ## 11. Release gate checklist (repeat for each release)
 
-**Status:** not filled in — no release was cut. The 2026-11-26 audit verified the backlog (Section 9) and ran the frontend checks; it was not a release review, so the boxes below stay open until one happens.
+**Status:** completed for the 2026-11-26 Azure deployment at SHA `70ac58d`. Each line names the evidence; repeat the list for the next release.
 
-- [ ] Updated tracker task statuses and completion count.
-- [ ] Added a progress log entry for every implemented change.
-- [ ] Code reviewed and commit/PR links captured for both branches as applicable.
-- [ ] Automated tests executed and actual outcomes documented.
-- [ ] Manually verified core claim create/edit/resubmit flow with distinct records.
-- [ ] Verified role, privacy, and document access checks.
-- [ ] Reviewed migration safety and backup/rollback plan if DB changed.
-- [ ] Validated Indonesian/English copy, mobile layout, and number formatting.
-- [ ] Updated README/API documentation and recorded open limitations.
+- [x] Updated tracker task statuses and completion count. — Section 9 reads 23/23 `Done`.
+- [x] Added a progress log entry for every implemented change. — `HEALTH_GUARD_PROGRESS_LOG.md` carries entries for `38f18b7`, `70ac58d` and the verification session.
+- [x] Code reviewed and commit/PR links captured for both branches as applicable. — single `main` branch: `38f18b7` (HG-04 numeric export + tracker) and `70ac58d` (auth status codes); no PRs were used.
+- [x] Automated tests executed and actual outcomes documented. — on the VM at `70ac58d`: PHPUnit 170 tests / 864 assertions (SQLite) and 170 / 879 (MySQL), Pint pass, Vitest 33/33, Playwright 9/9, typecheck, lint, build.
+- [x] Manually verified core claim create/edit/resubmit flow with distinct records. — CLM-2026-008 created, assigned, partially approved and paid; CLM-2026-009 created, set to Needs Info, edited in the UI and resubmitted to Pending while 008 kept its own state and history.
+- [x] Verified role, privacy, and document access checks. — anonymous document download and API calls return 401 JSON, `/storage/documents/*` 404, other clients' claims 404, disallowed upload 422, role matrix covered by `SecurityAuthorizationTest`.
+- [x] Reviewed migration safety and backup/rollback plan if DB changed. — no schema change in this work; the MySQL run used a throwaway `healthguard_test` database created and dropped on the VM, so production data needed no rollback.
+- [x] Validated Indonesian/English copy, mobile layout, and number formatting. — English pass at 390×762 (no page-level overflow; the table scrolls inside `.table-wrap`), ID/EN switch kept typed form values, `Rp 1.500.000` grouping in form, review, list, detail and export.
+- [x] Updated README/API documentation and recorded open limitations. — `docs/API.md` already specified 401 for unauthenticated calls and now matches the code; limitations are recorded in Section 9 (deviations) and below.

@@ -43,6 +43,54 @@
 
 ---
 
+## 2026-11-26 20:25 WIB — [ADD-01] Unauthenticated API calls return 401 instead of 500
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** Not Started → Done
+- **Branch / commit / PR:** `main`, commit `70ac58d` (pushed).
+- **Problem / feedback:** while testing the deployed application, `GET /api/claims` without `Accept: application/json` returned **500 Server Error**. The server log showed `Route [login] not defined`.
+- **Goal / acceptance criteria:** any unauthenticated request under `/api/*` answers `401 {"message":"Unauthenticated."}` in JSON, whatever the `Accept` header says, matching `docs/API.md`.
+- **Implementation:**
+  - `Health_Guard-backend/bootstrap/app.php`: the framework registers `redirectGuestsTo(fn () => route('login'))` by default, and that callback is evaluated *inside* `Authenticate` before the exception handler runs, so the routing error replaced the auth failure. Added `$middleware->redirectGuestsTo(null)` plus an explicit `AuthenticationException` renderer that returns JSON 401 for `api/*`.
+  - `Health_Guard-backend/tests/Feature/SecurityAuthTest.php`: regression test covering `/api/claims` and a document download URL with no `Accept` header, plus the JSON variant.
+  - Database/API contract: none; response shape unchanged, status code corrected to the documented one.
+- **Verification:**
+  - `php vendor/bin/phpunit --filter test_unauthenticated_api_requests`: FAIL before the fix (500), PASS after.
+  - `APP_KEY=… php vendor/bin/phpunit`: PASS — 170 tests, 864 assertions, 2 skipped.
+  - `php vendor/bin/pint --test`: PASS.
+  - Live: `curl http://20.212.0.113/api/claims` → 401 JSON; document download → 401; `/healthz` 200.
+  - MySQL variant and Playwright: NOT RUN in that step (run later, see the entry below).
+- **Evidence:** `/var/lib/hg-be-test.log` and `/var/lib/hg-mysql.log` on the VM; `docs/API.md` status table.
+- **Risk / rollback:** low; revert the two `bootstrap/app.php` blocks to restore the default guest redirect.
+- **Known limitations / blockers:** none.
+- **Next action:** none — closed by `70ac58d`.
+
+---
+
+## 2026-11-26 21:10 WIB — [§11] Release verification on the Azure deployment
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** In Review → Done (release gate)
+- **Branch / commit / PR:** `main`, deployed SHA `70ac58d`; documentation commit follows this entry.
+- **Problem / feedback:** the backlog was marked complete but several Section 11 release gates had never been exercised against a running deployment.
+- **Goal / acceptance criteria:** every Section 11 release-gate line has evidence (tests, live flows, copy/mobile, migration safety, docs).
+- **Implementation:**
+  - `docs/HEALTH_GUARD_IMPROVEMENTS.md`: Section 11 checked with per-line evidence; Section 9 deviations unchanged.
+  - No application code changed in this step.
+  - Database/API contract: none.
+- **Verification:**
+  - VM host (no image rebuild): PHPUnit 170 tests / 864 assertions / 2 skipped (SQLite) and 170 / 879 / 1 skipped (MySQL on a throwaway `healthguard_test` database, dropped afterwards), Pint pass, `tsc --noEmit` 0, ESLint 0, Vitest 33/33, `vite build` 0, Playwright 9/9 in 2.3 min.
+  - Live UI: claim created (CLM-2026-008), document uploaded, chat sent, analyst assigned and partially approved, admin recorded `paid` → `settled`; CLM-2026-009 created, set to Needs Info, edited and resubmitted to Pending; paid claim resubmit rejected with 409.
+  - Export: XLSX download triggered from the deployed app; both amount columns contain numeric cells (`t: "n"`, format `#,##0.00`).
+  - Copy/mobile: English pass at 390×762 with no page-level overflow and an internally scrolling table; ID/EN switch preserved typed form values.
+  - Not run: NVDA/VoiceOver listening, native OS file picker, opening the workbook in a spreadsheet application, load testing.
+- **Evidence:** `/var/lib/hg-test.log`, `hg-be-test.log`, `hg-e2e.log`, `hg-mysql.log`, `hg-xlsx.log` on the VM; commits `38f18b7`, `70ac58d`.
+- **Risk / rollback:** none — documentation only.
+- **Known limitations / blockers:** test accounts (`test.*@example.test`) and claims CLM-2026-008/009 remain in the demo database; `terraform destroy` removes the whole environment.
+- **Next action:** new defects or features need new tickets; do not reopen closed ones.
+
+---
+
 ## Entry template (copy below this line for each change)
 
 ```md
