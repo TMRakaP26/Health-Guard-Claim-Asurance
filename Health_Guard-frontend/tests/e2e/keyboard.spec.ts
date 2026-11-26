@@ -11,13 +11,30 @@ async function expectNoPageOverflow(page: Page) {
 
 async function tabTo(page: Page, target: Locator) {
   await expect(target).toBeVisible();
-  for (let attempt = 0; attempt < 80; attempt++) {
-    if (await target.evaluate((element) => element === document.activeElement))
-      return;
-    await page.keyboard.press("Tab");
+  for (let sweep = 0; sweep < 3; sweep++) {
+    if (sweep) {
+      await page.waitForLoadState("networkidle");
+      await page.evaluate(() =>
+        (document.activeElement as HTMLElement | null)?.blur(),
+      );
+    }
+    for (let attempt = 0; attempt < 80; attempt++) {
+      if (await target.evaluate((element) => element === document.activeElement))
+        return;
+      await page.keyboard.press("Tab");
+    }
   }
+  const active = await page.evaluate(() => {
+    const element = document.activeElement as HTMLElement | null;
+    if (!element) return "none";
+    const label = element.getAttribute("aria-label") || element.textContent;
+    return element.tagName + " \"" + (label || "").trim().slice(0, 40) + "\"";
+  });
   throw new Error(
-    "Control cannot be reached by Tab: " + (await target.getAttribute("name")),
+    "Control cannot be reached by Tab: " +
+      ((await target.getAttribute("name")) ?? (await target.textContent())) +
+      "; focus stayed on " +
+      active,
   );
 }
 async function enter(page: Page, target: Locator, value: string) {
