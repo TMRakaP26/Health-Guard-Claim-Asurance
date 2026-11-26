@@ -137,10 +137,11 @@ stray `Enter` in that form opens an approve confirmation; the dialog focuses `Ke
 which keeps the accidental confirm one deliberate key away. That is how `CLM-2026-009` became
 `Approved` during this session: the tab order after four presses landed on `Konfirmasi & simpan`
 and the next key activated it. The transition itself is legal (assigned analyst, `Pending` →
-`Approved`) and the stored result was consistent everywhere, so it is recorded here as an
-observation about defaults rather than a defect. A decision form that starts with no status
-selected would remove the hazard; it is not required by [HEALTH_GUARD_IMPROVEMENTS.md](HEALTH_GUARD_IMPROVEMENTS.md)
-and was not changed.
+`Approved`) and the stored result was consistent everywhere, so the session itself is not a
+failure record. The hazard it exposed was fixed the same day: the decision form now starts with
+no status selected (`Choose a decision` / `Pilih keputusan`) and the select is `required`, so an
+approval is always chosen deliberately (`1e77052`, with `keyboard.spec.ts` and
+`workflows.spec.ts` updated to select the status and a Vitest guard in `portal.test.tsx`).
 
 The 21 November conclusion still holds: TEST-05, UX-10 and BL-12 are released on the
 revised automated scope, and the manual rows below are reference material, not blockers.

@@ -111,6 +111,30 @@
 
 ---
 
+## 2026-11-26 21:50 WIB — [UX] Analyst decision no longer defaults to Approved
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** Not Started → Done
+- **Branch / commit / PR:** `main`, commits `1e77052` (behaviour + tests) and the documentation commit that follows.
+- **Problem / feedback:** during the interactive keyboard session an `Enter` on the dialog's focused confirm button saved an `Approved` decision on `CLM-2026-009`. The dialog was behaving as designed; the underlying hazard was that the decision form preselected `Approved` for the full claim amount, so a stray `Enter` in the form pre-filled an approve confirmation.
+- **Goal / acceptance criteria:** the analyst must choose a decision deliberately; the confirmation dialog, history and amount handling stay unchanged.
+- **Implementation:**
+  - `ClaimDetail.tsx`: decision state starts empty; the select gains a disabled `Pilih keputusan` / `Choose a decision` placeholder and `required`, so native validation blocks a status-less submit like it already did for a missing note.
+  - `tests/e2e/keyboard.spec.ts`: asserts the select starts empty, then selects `Approved` before reviewing.
+  - `tests/e2e/workflows.spec.ts`: the approval path selects `Approved` before reviewing.
+  - `tests/portal.test.tsx`: `useAuth` became an overridable mock with a client default, plus a guard test that the analyst sees no preselected status.
+  - Database/API contract: none; `PATCH /claims/{id}/status` is untouched.
+- **Verification:**
+  - `npx tsc --noEmit`: 0; `npx eslint . --max-warnings=0`: 0; `npx vitest run`: 34 passed (was 33, one new guard test).
+  - On the VM at `a47d756`: `npx playwright test` — 9 passed in 2.0 minutes, exit 0; the first run at `1e77052` failed `workflows.spec.ts` as expected because that spec still relied on the old default, which is why the second commit exists.
+  - Not run: backend suite (no backend change), NVDA/VoiceOver.
+- **Evidence:** `/var/lib/hg-e2e.log` on the VM; deployment rebuilt the frontend image and reported healthy containers at `a47d756`.
+- **Risk / rollback:** low — revert the select and state change to restore the previous default; the tests would need the same revert.
+- **Known limitations / blockers:** the placeholder is a native `required` validation message, whose wording follows the browser language rather than the app locale.
+- **Next action:** none.
+
+---
+
 ## Entry template (copy below this line for each change)
 
 ```md
