@@ -88,7 +88,7 @@ the labels were corrected in ID/EN. The expanded seven-test suite is being verif
 | Manual client/analyst QA | Not executed | Run core scenarios above on disposable data |
 | Keyboard-only happy paths | Not executed | Complete both roles without pointer input |
 | NVDA/VoiceOver | Not executed | Record reader/version, browser, route and announcements |
-| Remote CI | Not rechecked | Local results do not establish the status of the latest remote commit |
+| Remote CI | Passed (26 Nov 2026) | Run `45842080346` on `c3a2482`: backend (sqlite), backend (mysql), frontend, e2e and docker all success. Every earlier run in this repository had failed, always in the e2e job at the document-button Tab step |
 
 The 19–20 November PR/CI execution history is preserved in [IMPLEMENTATION.md](IMPLEMENTATION.md).
 The earlier five-test run used revision `3e85bab617625fc1cd521e71e604f87764e4f39b`.
@@ -145,6 +145,21 @@ approval is always chosen deliberately (`1e77052`, with `keyboard.spec.ts` and
 
 The 21 November conclusion still holds: TEST-05, UX-10 and BL-12 are released on the
 revised automated scope, and the manual rows below are reference material, not blockers.
+
+## Remote CI — 26 November 2026
+
+Every run in this repository up to `8c0f956` had failed, always in the `e2e` job, always at
+`keyboard.spec.ts` when the client claim page tried to Tab to the uploaded document button.
+The page snapshot from the artifact showed the button rendered and visible, so the control was
+not missing: focus never reached it on the runner. The same spec passed locally and on the VM
+every time, which points at a focus reset while the detail page kept re-rendering on the slower
+runner.
+
+`tabTo` now waits for network idle and retries the sweep before failing, and its error names the
+control that held focus instead of a null label. Run `45842080346` on `c3a2482` is green:
+`backend (sqlite)`, `backend (mysql)`, `frontend`, `e2e` and `docker` all succeeded. The helper
+still requires the control to be reached by `Tab`; the retry only tolerates a page that settles
+after the first sweep.
 
 ## Manual execution worksheet
 

@@ -135,6 +135,29 @@
 
 ---
 
+## 2026-11-26 22:05 WIB — [CI] First green remote pipeline
+
+- **Owner:** agent session (no human reviewer yet)
+- **Status:** Not Started → Done
+- **Branch / commit / PR:** `main`, commit `c3a2482`.
+- **Problem / feedback:** `gh run list` showed every workflow run in the repository failing, including docs-only commits, always in the `e2e` job. The documentation said remote CI had not been rechecked.
+- **Goal / acceptance criteria:** all five required jobs green on the pushed commit without weakening the keyboard assertions.
+- **Implementation:**
+  - `tests/e2e/keyboard.spec.ts`: `tabTo` waits for network idle and re-runs its sweep (three sweeps) before failing, and the failure message now names the control holding focus and the target's text instead of a `null` attribute.
+  - No application code changed; the retry tolerates a page that settles late, it does not make an unreachable control reachable.
+  - Database/API contract: none.
+- **Verification:**
+  - Artifact from run `45839205165`: page snapshot and screenshot show `button "keyboard.png"` rendered and visible while the Tab sweep failed, so the element existed and focus never arrived.
+  - Local: `npx tsc --noEmit` 0, `npx eslint . --max-warnings=0` 0, `npx playwright test tests/e2e/keyboard.spec.ts` passed (47.3s).
+  - Remote: `gh run watch 45842080346` — conclusion `success`; `backend (sqlite)`, `backend (mysql)`, `frontend`, `e2e`, `docker` all `success`.
+  - Not re-run in this step: full local suite, backend suite (unchanged).
+- **Evidence:** run `45842080346`; `docs/QA.md` "Remote CI — 26 November 2026".
+- **Risk / rollback:** low — the helper's retry adds ~2 seconds on a genuinely unreachable control.
+- **Known limitations / blockers:** the root cause (focus reset during repeated re-renders on the runner) was not isolated to a component; the retry absorbs it.
+- **Next action:** none.
+
+---
+
 ## Entry template (copy below this line for each change)
 
 ```md
