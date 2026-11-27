@@ -27,7 +27,7 @@ export function Profile() {
   const action = useAction();
   const catalog = useQuery<Catalog>("/catalog");
   const deletions = useQuery<Page<Deletion>>("/deletion-requests");
-  const [setup, setSetup] = useState<{ secret: string; otpauth_url: string }>();
+  const [setup, setSetup] = useState<{ secret: string; uri: string }>();
   const [codes, setCodes] = useState<string[]>();
   if (!user) return null;
   return (
@@ -235,7 +235,7 @@ export function Profile() {
                 void action.run(async () => {
                   const r = await api.post<{
                     secret: string;
-                    otpauth_url: string;
+                    uri: string;
                   }>("/two-factor/setup", data);
                   setSetup(r.data);
                 });
@@ -263,6 +263,14 @@ export function Profile() {
                 )}
               </p>
               <code className="secret">{setup.secret}</code>
+              <p>
+                <a href={setup.uri}>
+                  {t(
+                    "Buka di aplikasi authenticator",
+                    "Open in authenticator app",
+                  )}
+                </a>
+              </p>
               <form
                 onSubmit={(e) => {
                   const data = formValues(e);
@@ -367,6 +375,52 @@ export function Profile() {
     </>
   );
 }
+
+/** Origins whose signed verification links this build may follow. */
+export function acceptedVerificationOrigins(
+  pageOrigin: string,
+  configuredApiOrigin: string,
+): string[] {
+  const origins = new Set([pageOrigin]);
+  if (configuredApiOrigin) {
+    try {
+      origins.add(new URL(configuredApiOrigin, pageOrigin).origin);
+    } catch {
+      // An unparsable configuration contributes nothing rather than widening the guard.
+    }
+  }
+  return [...origins];
+}
+
+/**
+ * Turn the emailed `url` parameter into the relative API path this app calls.
+ * The backend signs for APP_URL (the API origin) while the page runs on
+ * FRONTEND_URL, so both origins are accepted; anything else is refused. The
+ * signed query is forwarded unchanged and still verified by the server.
+ */
+export function verificationRequestPath(
+  raw: string,
+  acceptedOrigins: string[],
+): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Invalid verification link");
+  }
+  if (
+    !acceptedOrigins.includes(url.origin) ||
+    !url.pathname.startsWith("/api/email/verify/") ||
+    !url.searchParams.get("expires") ||
+    !url.searchParams.get("signature")
+  )
+    throw new Error("Invalid verification link");
+  return url.pathname.replace(/^\/api/, "") + url.search;
+}
+
+const configuredApiOrigin = () =>
+  import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+
 export function VerifyEmail() {
   const [params] = useSearchParams();
   const action = useAction();
@@ -384,13 +438,14 @@ export function VerifyEmail() {
           disabled={action.busy}
           onClick={() =>
             void action.run(async () => {
-              const url = new URL(params.get("url") || "");
-              if (
-                url.origin !== window.location.origin ||
-                !url.pathname.startsWith("/api/email/verify/")
-              )
-                throw new Error("Invalid verification link");
-              await api.get(url.pathname.replace(/^\/api/, "") + url.search);
+              const requestPath = verificationRequestPath(
+                params.get("url") || "",
+                acceptedVerificationOrigins(
+                  window.location.origin,
+                  configuredApiOrigin(),
+                ),
+              );
+              await api.get(requestPath);
               await refreshUser();
               setDone(true);
             })

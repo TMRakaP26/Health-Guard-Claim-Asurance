@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\ClaimService;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -25,6 +27,34 @@ class MigrationAndLifecycleTest extends TestCase
         $this->getJson($url)->assertOk();
         $this->assertNotNull($user->fresh()->email_verified_at);
         $this->getJson($url.'tampered')->assertForbidden();
+    }
+
+    public function test_verification_email_wraps_the_api_signed_url_for_the_frontend(): void
+    {
+        config(['healthguard.frontend_url' => 'http://127.0.0.1:5173']);
+        $user = User::factory()->create(['email_verified_at' => null, 'role' => 'client']);
+        Notification::fake();
+
+        $user->sendEmailVerificationNotification();
+
+        $actionUrl = null;
+        Notification::assertSentTo($user, VerifyEmail::class, function (VerifyEmail $notification) use ($user, &$actionUrl) {
+            $actionUrl = $notification->toMail($user)->actionUrl;
+
+            return true;
+        });
+
+        $this->assertIsString($actionUrl);
+        $this->assertStringStartsWith('http://127.0.0.1:5173/verify-email?url=', $actionUrl);
+        parse_str((string) parse_url($actionUrl, PHP_URL_QUERY), $query);
+        $signed = $query['url'];
+        $this->assertStringContainsString('/api/email/verify/'.$user->id.'/', $signed);
+        $this->assertStringContainsString('signature=', $signed);
+
+        // The wrapped URL is the API origin, which the page origin check must allow.
+        Sanctum::actingAs($user);
+        $this->getJson($signed)->assertOk();
+        $this->assertNotNull($user->fresh()->email_verified_at);
     }
 
     public function test_sqlite_import_preserves_relationships_history_and_next_claim_id(): void

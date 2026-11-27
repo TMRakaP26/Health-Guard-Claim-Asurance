@@ -164,7 +164,11 @@ class ProductWorkflowsTest extends TestCase
         $this->assertSame('287082', $totp->code('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', 1));
         $staff = $this->person('analyst');
         Sanctum::actingAs($staff);
-        $secret = $this->postJson('/api/two-factor/setup', ['password' => 'secure-test-password'])->assertOk()->json('secret');
+        $setup = $this->postJson('/api/two-factor/setup', ['password' => 'secure-test-password'])->assertOk();
+        $setup->assertJsonStructure(['secret', 'uri']);
+        $this->assertArrayNotHasKey('otpauth_url', $setup->json());
+        $this->assertStringStartsWith('otpauth://totp/', $setup->json('uri'));
+        $secret = $setup->json('secret');
         $code = $totp->code($secret, intdiv(now()->timestamp, 30));
         $recovery = $this->postJson('/api/two-factor/confirm', ['code' => $code])->assertOk()->json('recovery_codes.0');
         $this->assertNotEquals($secret, DB::table('users')->where('id', $staff->id)->value('two_factor_secret'));

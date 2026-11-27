@@ -48,7 +48,11 @@ class SafeUpload implements ValidationRule
         if (! isset($allowed[$extension])
             || ! in_array($value->getMimeType(), $allowed[$extension], true)
             || ! $this->contentsMatch($extension, $value)) {
-            $fail('The :attribute contents must match its PDF, JPG, JPEG, PNG, DOC, or DOCX extension.');
+            // The rejection must list only the formats this caller accepts, or a
+            // profile photo upload is told that a Word document is acceptable.
+            $fail($this->imagesOnly
+                ? 'The :attribute contents must match its JPG, JPEG, or PNG extension.'
+                : 'The :attribute contents must match its PDF, JPG, JPEG, PNG, DOC, or DOCX extension.');
         }
     }
 

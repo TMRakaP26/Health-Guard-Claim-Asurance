@@ -1,4 +1,4 @@
-# Ticket coverage â€” 22 November 2026
+# Ticket coverage — 22 November 2026
 
 ## Revised automated acceptance
 

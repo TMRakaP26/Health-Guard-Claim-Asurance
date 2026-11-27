@@ -68,6 +68,45 @@ const empty: ClaimInput = {
   patient_date_of_birth: "",
   service_date: "",
 };
+const SUBMISSION_KEY_STORAGE = "healthguard.claim-submission-key";
+
+function newSubmissionKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    "submission-" + Date.now() + "-" + Math.random().toString(16).slice(2)
+  );
+}
+
+/**
+ * One opaque submission key per form submission: it survives a reload so a
+ * retry replays the claim instead of creating a second one. Only the key is
+ * stored, never any claim or patient data, and it is cleared as soon as the
+ * server returns the claim.
+ */
+function storedSubmissionKey(): string {
+  try {
+    const stored = window.sessionStorage.getItem(SUBMISSION_KEY_STORAGE);
+    if (stored) return stored;
+  } catch {
+    return newSubmissionKey();
+  }
+  const key = newSubmissionKey();
+  try {
+    window.sessionStorage.setItem(SUBMISSION_KEY_STORAGE, key);
+  } catch {
+    // Storage can be unavailable; the key then lives only in memory.
+  }
+  return key;
+}
+
+function forgetSubmissionKey() {
+  try {
+    window.sessionStorage.removeItem(SUBMISSION_KEY_STORAGE);
+  } catch {
+    // Nothing was stored.
+  }
+}
+
 export function ClaimForm() {
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -107,11 +146,9 @@ export function ClaimForm() {
     Number(params.get("draft")) || undefined,
   );
   const [savedClaim, setSavedClaim] = useState<string>();
-  // Stable per page session so a retried submit replays instead of duplicating.
-  const submissionKey = useRef(
-    globalThis.crypto?.randomUUID?.() ??
-      "submission-" + Date.now() + "-" + Math.random().toString(16).slice(2),
-  );
+  // Created on the first submit and kept until the server acknowledges it, so a
+  // submit whose response was lost can be replayed after a reload.
+  const submissionKey = useRef<string>();
   const [files, setFiles] = useState<File[]>([]);
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
@@ -184,12 +221,15 @@ export function ClaimForm() {
           ? data
           : {
               ...data,
-              submission_key: submissionKey.current,
+              submission_key:
+                submissionKey.current ??
+                (submissionKey.current = storedSubmissionKey()),
               draft_id: draftId,
             },
       });
       claimId = r.data.claim_id;
       setSavedClaim(claimId);
+      forgetSubmissionKey();
     }
     const abort = new AbortController();
     setController(abort);

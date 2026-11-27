@@ -183,6 +183,7 @@ class SecurityUploadTest extends TestCase
             'mismatched extension' => ['photo.jpg', 'PNG', 0],
             'GIF' => ['photo.gif', 'GIF89a', 0],
             'WebP' => ['photo.webp', 'RIFF0000WEBP', 0],
+            'Word document' => ['photo.docx', 'DOCX', 0],
             'one byte above 2 MB' => ['photo.png', 'PNG', 2 * 1024 * 1024 + 1],
         ];
     }
@@ -197,6 +198,31 @@ class SecurityUploadTest extends TestCase
         $this->postJson('/api/user/photo', ['photo' => $this->upload($name, $content)])
             ->assertUnprocessable()->assertJsonValidationErrors('photo');
         $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_profile_photo_rejection_names_only_image_formats(): void
+    {
+        $response = $this->postJson('/api/user/photo', [
+            'photo' => $this->upload('photo.docx', self::docx()),
+        ])->assertUnprocessable()->assertJsonValidationErrors('photo');
+
+        $message = implode(' ', $response->json('errors.photo'));
+        $this->assertStringContainsString('JPG, JPEG, or PNG', $message);
+        $this->assertStringNotContainsString('DOC', $message);
+        $this->assertStringNotContainsString('PDF', $message);
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_document_rejection_still_names_document_formats(): void
+    {
+        $response = $this->postJson('/api/claims/CLM-2026-001/documents', [
+            'file' => $this->upload('receipt.zip', self::zip(['notes.txt' => 'not a receipt'])),
+        ])->assertUnprocessable()->assertJsonValidationErrors('file');
+
+        $message = implode(' ', $response->json('errors.file'));
+        $this->assertStringContainsString('PDF, JPG, JPEG, PNG, DOC, or DOCX', $message);
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertSame([], Storage::disk('private')->allFiles());
     }
 
     public function test_valid_profile_photo_remains_public(): void

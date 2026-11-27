@@ -7,6 +7,11 @@ import { ClaimList } from "../src/app/portal/ClaimList";
 import { ClaimDetail } from "../src/app/portal/ClaimDetail";
 import { ClaimForm } from "../src/app/portal/ClaimForm";
 import { LocaleProvider } from "../src/app/portal/locale";
+import {
+  acceptedVerificationOrigins,
+  Profile,
+  verificationRequestPath,
+} from "../src/app/portal/Profile";
 import { useAuth } from "../src/app/state/AuthContext";
 import {
   fileAccept,
@@ -55,6 +60,7 @@ function mount(element: React.ReactNode, path = "/claims") {
       { path: "/claims/:id", element },
       { path: "/claims/new", element },
       { path: "/claims/:id/edit", element },
+      { path: "/profile", element },
     ],
     { initialEntries: [path] },
   );
@@ -66,6 +72,7 @@ function mount(element: React.ReactNode, path = "/claims") {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  window.sessionStorage.clear();
   vi.mocked(useAuth).mockReturnValue(clientUser);
 });
 function mockDetail(status = "Needs Info", history: unknown[] = []) {
@@ -547,5 +554,168 @@ describe("client identity, disease and chat UX", () => {
     expect(within(log).getByText("Analis")).toBeInTheDocument();
     expect(log.querySelectorAll(".chat-message.mine")).toHaveLength(1);
     expect(log.querySelectorAll(".chat-message.theirs")).toHaveLength(1);
+  });
+});
+
+describe("email verification link guard", () => {
+  const origins = acceptedVerificationOrigins(
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
+  );
+  const signed = (origin: string) =>
+    origin +
+    "/api/email/verify/1/abc123?expires=1764200000&signature=deadbeef";
+
+  it("accepts the API origin the backend signs for, and the page origin", () => {
+    const expected =
+      "/email/verify/1/abc123?expires=1764200000&signature=deadbeef";
+    expect(verificationRequestPath(signed("http://127.0.0.1:8000"), origins)).toBe(
+      expected,
+    );
+    expect(verificationRequestPath(signed("http://127.0.0.1:5173"), origins)).toBe(
+      expected,
+    );
+  });
+
+  it("rejects a foreign origin, another path and a missing signature", () => {
+    expect(() =>
+      verificationRequestPath(signed("http://evil.test"), origins),
+    ).toThrow("Invalid verification link");
+    expect(() =>
+      verificationRequestPath("http://127.0.0.1:8000/api/claims/1", origins),
+    ).toThrow("Invalid verification link");
+    expect(() =>
+      verificationRequestPath(
+        "http://127.0.0.1:8000/api/email/verify/1/abc123?expires=1764200000",
+        origins,
+      ),
+    ).toThrow("Invalid verification link");
+    expect(() => verificationRequestPath("", origins)).toThrow(
+      "Invalid verification link",
+    );
+  });
+});
+
+describe("two-factor setup panel", () => {
+  it("renders the otpauth URI returned by the API", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: {
+        id: 2,
+        role: "analyst",
+        name: "Analyst",
+        email: "analyst@example.test",
+      },
+      isLoading: false,
+      refreshUser: vi.fn(),
+    } as unknown as ReturnType<typeof useAuth>);
+    vi.mocked(api.get).mockImplementation(async (url) => ({
+      data:
+        String(url) === "/catalog"
+          ? { providers: [], categories: [], features: {} }
+          : { data: [], meta: { last_page: 1 } },
+    }));
+    const uri =
+      "otpauth://totp/HealthGuard%3Aanalyst%40example.test?secret=ABC234&issuer=HealthGuard";
+    vi.mocked(api.post).mockResolvedValue({ data: { secret: "ABC234", uri } });
+
+    mount(<Profile />, "/profile");
+    await userEvent.type(
+      screen.getByLabelText("Password"),
+      "secure-test-password",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Siapkan 2FA" }),
+    );
+
+    expect(
+      await screen.findByRole("link", {
+        name: "Buka di aplikasi authenticator",
+      }),
+    ).toHaveAttribute("href", uri);
+    expect(screen.getByText("ABC234")).toBeInTheDocument();
+  });
+});
+
+describe("submission key lifetime", () => {
+  function mockDraftForm() {
+    vi.mocked(api.get).mockImplementation(async (url) => ({
+      data:
+        String(url) === "/drafts"
+          ? [
+              {
+                id: 9,
+                data: {
+                  client_name: "Patient",
+                  provider_name: "Hospital",
+                  disease_name: "Flu",
+                  type: "Outpatient",
+                  amount: "500.00",
+                  step: 4,
+                },
+                updated_at: "2026-01-01T00:00:00Z",
+              },
+            ]
+          : {
+              providers: [],
+              categories: [],
+              features: {},
+              max_amount: 99999999.99,
+            },
+    }));
+  }
+  async function submitLoadedDraft() {
+    expect(
+      await screen.findByRole("heading", {
+        name: "Langkah 4 dari 4: Tinjau",
+      }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Kirim pengajuan" }),
+    );
+  }
+  function sentKey(call: number) {
+    return (
+      vi.mocked(api.request).mock.calls[call][0] as {
+        data: { submission_key?: string };
+      }
+    ).data.submission_key;
+  }
+
+  it("replays the same key after a reload when the response was lost", async () => {
+    mockDraftForm();
+    vi.mocked(api.request)
+      .mockRejectedValueOnce(new Error("Network Error"))
+      .mockResolvedValue({ data: claim });
+
+    const first = mount(<ClaimForm />, "/claims/new?draft=9");
+    await submitLoadedDraft();
+    await waitFor(() => expect(api.request).toHaveBeenCalledTimes(1));
+    const lostResponseKey = sentKey(0);
+    expect(lostResponseKey).toBeTruthy();
+    first.unmount();
+
+    mount(<ClaimForm />, "/claims/new?draft=9");
+    await submitLoadedDraft();
+    await waitFor(() => expect(api.request).toHaveBeenCalledTimes(2));
+
+    expect(sentKey(1)).toBe(lostResponseKey);
+    expect(JSON.stringify(window.sessionStorage)).not.toContain("Patient");
+  });
+
+  it("clears the key once the server acknowledges the claim", async () => {
+    mockDraftForm();
+    vi.mocked(api.request).mockResolvedValue({ data: claim });
+
+    mount(<ClaimForm />, "/claims/new?draft=9");
+    await submitLoadedDraft();
+    await waitFor(() => expect(api.request).toHaveBeenCalledTimes(1));
+
+    expect(api.request).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(
+        window.sessionStorage.getItem("healthguard.claim-submission-key"),
+      ).toBeNull(),
+    );
   });
 });

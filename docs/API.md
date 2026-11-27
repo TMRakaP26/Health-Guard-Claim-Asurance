@@ -29,11 +29,11 @@ Base URL: /api. JSON request/response; use Accept: application/json. All protect
 Protected:
 - GET /user → user.
 - PUT /user → optional name,email,username,phone,address,DOB/BPJS,locale(id/en). Password change requires current_password; returns {user,reauthenticate,message}. Password changes revoke all sessions.
-- POST /user/photo: photo JPG/PNG ≤2MB; DELETE /user/photo. Returns {user,message}.
+- POST /user/photo: photo JPG/JPEG/PNG ≤2MB, rejected with a message naming only those formats; DELETE /user/photo. Returns {user,message}.
 - POST /logout: revoke current token; POST /logout-all: revoke all, reauthenticate=true.
 - POST /email/verification-notification: mail feature required.
-- GET /email/verify/{id}/{hash}?expires=...&signature=...: auth user must match and signature valid. Verification email links to frontend /verify-email, which preserves the signed URL.
-- POST /two-factor/setup: staff only, password required → {secret,uri}; setup must be confirmed.
+- GET /email/verify/{id}/{hash}?expires=...&signature=...: auth user must match and signature valid. Verification email links to frontend /verify-email?url=<encoded signed URL>. The signed URL is absolute and uses APP_URL, so its origin is the API origin; the frontend accepts that origin and its own page origin (FRONTEND_URL), rejects every other origin, requires the /api/email/verify/ path plus expires and signature, then calls the same path through its own /api proxy. The server still validates the signature, so no link is trusted because of the origin check alone.
+- POST /two-factor/setup: staff only, password required → {secret,uri}; the frontend shows the secret and links to the otpauth:// URI. Setup must be confirmed.
 - POST /two-factor/confirm: code6digits → {recovery_codes:[...]}; display once.
 - DELETE /two-factor: password,code(authenticator or recovery) → reauthenticate=true. TOTP rejects replay; recovery codes are single-use. Secrets/recovery hashes encrypted at rest.
 
@@ -43,7 +43,7 @@ GET /claims accepts q(max255; claim ID/patient/provider/type), status, date_from
 
 GET /claims/unassigned and /claims/my-assignments are analyst aliases. GET /claims/{id} is allowed for owner or staff.
 
-POST /claims (client): client_name,type,provider_name required strings≤255; amount>0≤99999999.99 with≤2 decimals; optional bpjs_number≤30, patient_date_of_birth/service_date≤today. Optional submission_key(8–64 chars) and draft_id (the client's own draft). Creates Pending + submitted history and 201; sending the same submission_key again returns the existing claim with 200 and creates no second claim, history entry or notification. Creating the claim deletes its draft; a foreign or unknown draft_id is 404.
+POST /claims (client): client_name,type,provider_name required strings≤255; amount>0≤99999999.99 with≤2 decimals; optional bpjs_number≤30, patient_date_of_birth/service_date≤today. Optional submission_key(8–64 chars) and draft_id (the client's own draft). Creates Pending + submitted history and 201; sending the same submission_key again returns the existing claim with 200 and creates no second claim, history entry or notification. Creating the claim deletes its draft; a foreign or unknown draft_id is 404. The frontend keeps one opaque submission_key per submission in sessionStorage (the key only, never claim data) so a retry after a reload replays the same claim, and clears it as soon as the API returns the claim.
 
 PUT /claims/{id} (owner): same fields, optional on update. Only Rejected/Needs Info/Partially Approved without payment may resubmit. Preserves assignment/current notes, snapshots previous data, resets approved_amount=null and status Pending.
 
