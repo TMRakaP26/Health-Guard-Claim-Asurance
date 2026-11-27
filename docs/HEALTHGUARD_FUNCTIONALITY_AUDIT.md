@@ -523,39 +523,39 @@ Update this section after each A/B cycle. Keep dated history rather than deletin
 
 ### Current phase
 
-- **Phase:** 4 - Engineering repair, Batch 1 implemented
-- **Overall status:** IN PROGRESS — FNC-001 and FNC-002 implemented and covered locally; independent QA and VM runtime verification outstanding
+- **Phase:** 4/5 - Batch 2 implemented and locally checked; independent QA outstanding
+- **Overall status:** IN PROGRESS — FNC-001 and FNC-002 remain `VERIFIED`; Batch 2 (FNC-003, FNC-005, FNC-008, FNC-009, FNC-010) is `FIXED_PENDING_QA` at `8e8fbc8`; VM, MySQL and browser verification still outstanding
 - **Canonical tracker:** `docs/HEALTHGUARD_FUNCTIONALITY_AUDIT.md` (selected by the Stage 0 cleanup report). The prompt path `docs/FUNCTIONALITY_AUDIT.md` does not exist; no second tracker was created.
 - **Current branch:** `agent/healthguard/fnc-001-fnc-002` (created from `main` at `20f7601` for Batch 1)
-- **Current HEAD SHA:** `1a1e958f2aea0513a4895d69f05edd4d7441401a` (implementation commit for Batch 1; this tracker update is a follow-up commit)
-- **Working tree:** Batch 1 code, tests, `docs/API.md` and `docs/TEST-COVERAGE.md` committed to the engineering branch. The Stage 0 documentation edits from the previous cycle remain uncommitted local changes and were deliberately not included.
-- **Manual VM mode:** NOT RUN this cycle. `az` and Terraform are available and the subscription is unambiguous, but no session infrastructure was applied because the batch does not require VM runtime proof and the stack pins `/opt/healthguard` to `main` with a 10-minute auto-update timer (see FNC-007).
+- **Current HEAD SHA:** `8e8fbc8` (Batch 2 implementation, 9 files) on top of `5d48a41` (Batch 1 evidence) and `1a1e958` (Batch 1 implementation). This tracker edit follows `8e8fbc8` as a separate evidence commit.
+- **Working tree:** unchanged from Stage 0 apart from the Batch 2 commit; Stage 0 still holds uncommitted `.gitignore`, `DOCKER.md`, both package READMEs, `IMPROVEMENT.md`, `README.md`, `docs/ADR.md`, `docs/QA.md`, `docs/TEST-COVERAGE.md` (the rest of its Stage 0 edit; its header line is now committed), three deleted superseded docs, and untracked `docs/archive/` plus `docs/repository-cleanup-report.md`. The batch committed only its own nine files.
+- **Manual VM mode:** NOT RUN this cycle. `main.tf` hard-codes `BRANCH=main` for the `/opt/healthguard` checkout and enables the 10-minute `healthguard-sync` timer, so a Terraform-provisioned VM cannot run an engineering branch; changing that is infrastructure work outside every batch. No plan was produced and no infrastructure was applied or destroyed.
 - **Docker VM mode:** NOT RUN for this revision. Docker Desktop remains a non-prerequisite; no container was started locally.
-- **Next action:** Prompt A independently verifies FNC-001 and FNC-002 on `1a1e958`. FNC-004 waits for the owner decision. FNC-003 and FNC-005 remain queued. FNC-006 and FNC-007 need a disposable MySQL/VM environment.
+- **Next action:** Prompt A independently verifies Batch 2 on `8e8fbc8`; the owner decides FNC-004. FNC-006 and FNC-007 need a disposable MySQL/VM environment (and, for FNC-007, a configurable branch).
 
 ### Summary counts
 
 | Priority | New | Needs owner decision | Ready | In progress | Fixed pending QA | Verified | Blocked |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | P0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 1 | 0 | 0 | 2 | 0 | 0 |
-| P2 | 0 | 0 | 1 | 0 | 0 | 0 | 2 |
-| P3 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| P1 | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
+| P2 | 0 | 0 | 0 | 0 | 2 | 0 | 2 |
+| P3 | 0 | 0 | 0 | 0 | 3 | 0 | 0 |
 
 ### Workflow coverage
 
 | Workflow area | Status | Evidence / finding IDs | Notes |
 |---|---|---|---|
-| Baseline and documentation consistency | AUDITED — FINDINGS | FNC-001, FNC-002 | README/ADR/API/QA/cleanup report read against code; one documented document-type rule is not implemented. |
-| Authentication and sessions | PARTIALLY AUDITED — FINDING | FNC-003, FNC-007 | Registration/login/logout/token revocation/2FA/deactivation read; backend auth+security tests pass. Email-verification link is unusable in manual mode. No live session-expiry test. |
-| Client claim lifecycle | AUDITED — FINDINGS FIXED PENDING QA | FNC-002, FNC-001 | Create, draft, submit, track, request-for-info, resubmit, decision view and history read layer by layer. Duplicate-submission gap confirmed and implemented in Batch 1. |
+| Baseline and documentation consistency | AUDITED — FIX VERIFIED, ONE PENDING QA | FNC-001, FNC-008 | The document-type rule matches enforced behaviour. The committed coverage heading was restored as UTF-8 at `8e8fbc8`, awaiting QA. |
+| Authentication and sessions | PARTIALLY AUDITED — FIX PENDING QA | FNC-003, FNC-005, FNC-007 | Registration/login/logout/token revocation/2FA/deactivation read; backend auth+security tests pass. The verification link now accepts the API origin, and the 2FA setup panel renders the `otpauth://` URI; neither is proven in a browser or manual VM. No live session-expiry test. |
+| Client claim lifecycle | AUDITED — FIXES VERIFIED, ONE PENDING QA | FNC-001, FNC-002, FNC-009 | Create, draft, submit, track, request-for-info, resubmit, decision view and history read layer by layer. Batch 1 replay and draft retirement verified; the submission key now survives a reload (FNC-009) and awaits QA. |
 | Analyst workflow | AUDITED — OWNER DECISION | FNC-004 | Queue/assignment/competing assignment/decide/notes/documents read; assignment and decision locks are transactional. Deactivated analyst leaves claims undecidable. |
 | Administrator workflow | AUDITED — OWNER DECISION | FNC-004 | Users, invitations, activation, catalog, payments, deletion review read. No decision override, as recorded. Workload counts derive from claims. |
-| Documents and uploads | AUDITED — FINDING FIXED PENDING QA | FNC-001 | Private disk, policy checks, Apache/Nginx `documents` denial read. Server whitelist now accepts DOC/DOCX with container validation. Live file I/O still not exercised on a VM. |
+| Documents and uploads | AUDITED — FIX VERIFIED, ONE PENDING QA | FNC-001, FNC-010 | Private disk, policy checks, Apache/Nginx `documents` denial read. DOC/DOCX accepted with extension + MIME + container checks; PDF/image behaviour unchanged. The profile-photo rejection now names only JPG/JPEG/PNG (FNC-010). Live file I/O on a VM still not exercised. |
 | Claim state, history, and data integrity | PARTIALLY AUDITED | FNC-002, FNC-006 | Five statuses, allowed/blocked transitions, locks, transactions, immutable-history model read and covered by passing tests. MySQL row-lock behaviour unverified at HEAD. |
 | Notifications and conversations | PARTIALLY AUDITED | — | Recipients, triggers, read/read-all, polling and optional SSE/email read. Polling default is coherent. SSE and mail delivery not executed. |
 | Payments, reporting, retention, and exports | PARTIALLY AUDITED | FNC-006 | Payment paid→settled locking, amount ceiling, export filter scope, analytics metric definitions and retention guards read and covered by tests. Live XLSX/CSV re-check not run. |
-| Cross-layer and failure behavior | AUDITED — FINDINGS | FNC-001, FNC-002, FNC-003 | Form validation, API rules, DB constraints, error copy, retry paths and docs compared. Three divergences confirmed. |
+| Cross-layer and failure behavior | AUDITED — FIXES PENDING QA | FNC-001, FNC-002, FNC-003, FNC-005, FNC-009, FNC-010 | Form validation, API rules, DB constraints, error copy, retry paths and docs compared. FNC-001 and FNC-002 verified; the email-origin, 2FA field, reload-retry and photo-message divergences are corrected at `8e8fbc8` and await independent QA. |
 | Manual non-container VM verification | BLOCKED | FNC-007 | No VM access, no runtime record, no owner-supplied command output. Nothing was run on a VM. |
 | Docker VM verification | NOT RUN | FNC-007 | Not attempted; Docker is not a workstation prerequisite. Container files were read, not executed. |
 
@@ -600,17 +600,19 @@ Observed risk, not a finding: `PATCH /claims/{id}/status` accepts any of the fiv
 
 ### Active findings
 
-Audit baseline: `main` @ `20f7601dd7e035a1d87ebceca340926ca24e0a33`. The working tree contains only Stage 0 documentation edits plus this untracked tracker; no application code, test, schema, Compose, Terraform or CI file is modified, and nothing was committed or deployed. No owner feedback was supplied and no finding was `FIXED_PENDING_QA`, so this was an audit-only pass.
+Audit baseline: `main` @ `20f7601dd7e035a1d87ebceca340926ca24e0a33`. Cycle 1 was an audit-only pass. Cycle 3 verified Batch 1 on the engineering branch `agent/healthguard/fnc-001-fnc-002`; the audit pass itself changed only this tracker, committed and pushed nothing, and deleted its throwaway probes. No owner feedback has been supplied in any cycle, so all findings remain agent-discovered.
 
 Locally executed evidence (Windows, PHP 8.3.30, Node 25.9.0): backend `vendor/bin/phpunit` → 170 tests, 864 assertions, 2 skipped, OK; frontend `npm test` → 34 passed, `npm run typecheck` clean, `npm run lint` clean, `npm run test:security` → 5 passed, `npm run build` succeeded. Environment caveat: `php artisan test` fails without an `APP_KEY` in a fresh clone (no `.env` here); the runs above supplied a disposable inline key, and CI copies `.env.example`. Playwright was not run.
 
 Batch 1 evidence at `1a1e958` (same workstation, same inline disposable `APP_KEY`): targeted `vendor/bin/phpunit --filter='SecurityUploadTest|ClaimSubmissionIdempotencyTest'` → 35 tests, 165 assertions, OK. Full backend `vendor/bin/phpunit` → 183 tests, 938 assertions, 2 skipped (the two MySQL-only import tests, unchanged), OK. `vendor/bin/pint --test` on the changed PHP files → clean after one literal-case fix. Frontend `npm test -- --run` → 4 files, 35 tests passed; `npm run typecheck`, `npm run lint`, `npm run test:security`, `npm run build` all exit 0. Playwright and the E2E specs were NOT run this cycle. No VM, Docker, MySQL or browser run was performed.
 
+Independent QA pass at `1a1e958` (cycle 3, same workstation, PHP 8.3.30, Node 25.9.0): full backend `php vendor/bin/phpunit` → 183 tests, 938 assertions, 2 skipped, OK; `pint --test` over the nine changed PHP files → clean (9 files); frontend `npm test -- --run` → 4 files / 35 tests, plus `typecheck`, `lint`, `test:security` and `build` all exit 0. QA wrote and deleted two throwaway probe classes (changed-payload replay, replay carrying a foreign surviving draft, DOCX missing `[Content_Types].xml`, DOCX/DOC on `/api/user/photo`, and the photo error payload); 5 probes passed and no probe file remains. Playwright/E2E were NOT run, and no VM, Docker, MySQL or browser run was performed.
+
 ### [FNC-001] DOC/DOCX evidence is advertised and client-accepted but rejected by the server
 
 - Type: CONTRADICTION
 - Priority: P1 - High
-- Status: FIXED_PENDING_QA
+- Status: VERIFIED
 - Affected role(s): client (primary), assigned analyst (message attachments)
 - Affected workflow: claim evidence upload in the 4-step form and on claim detail
 - Environment: Not environment-specific
@@ -677,13 +679,13 @@ Only if the DOC/DOCX exclusion is the intended rule; otherwise the documented co
 
 **Verification result**
 
-`FIXED_PENDING_QA` — implemented; targeted and full local suites pass (see section 12 test evidence). Manual VM and Docker VM runtime checks NOT RUN (FNC-007). QA must confirm on its own run.
+`VERIFIED` (2026-11-27, independent QA pass at `1a1e958`, local SQLite on Windows). Re-ran the full backend suite (183 tests, 938 assertions, 2 skipped — the same two MySQL-only import tests) and `pint --test` over the nine changed PHP files (clean). Read `SafeUpload`, `DocumentUploadRequest` and `ProfilePhotoRequest` in full: the whitelist now lives in exactly one place, and `imagesOnly` still narrows profile photos to JPG/JPEG/PNG. Independent probes beyond the shipped tests: a ZIP containing `word/document.xml` but no `[Content_Types].xml` is rejected 422, proving the second half of the DOCX content check is enforced; `.doc` and `.docx` are both rejected 422 on `/api/user/photo`. Picker/`validateFile`, both UI copy strings (`Shell.tsx:256-257`, `ClaimForm.tsx:525-526`), the backend README and `docs/API.md:63` now agree with the server rule, so no layer advertises a format the API refuses. Manual VM and Docker VM runtime checks were NOT run (FNC-007) and no real VM file I/O was exercised. Residual, recorded separately: the rejection text is unconditionally DOC/DOCX-aware and leaks into the profile-photo message (FNC-010).
 
 ### [FNC-002] Claim submission is not idempotent; a retry or a resumed draft can create a duplicate claim
 
 - Type: DATA_INTEGRITY
 - Priority: P1 - High
-- Status: FIXED_PENDING_QA
+- Status: VERIFIED
 - Affected role(s): client (creates), analyst (receives duplicates)
 - Affected workflow: claim create, draft resume, document upload retry
 - Environment: Not environment-specific
@@ -752,13 +754,13 @@ None for the defect; the replay contract (which response a duplicate key returns
 
 **Verification result**
 
-`FIXED_PENDING_QA` — implemented; targeted and full local suites pass (see section 12 test evidence). Manual VM, Docker VM, concurrent-request and MySQL behaviour were NOT executed (FNC-006/FNC-007). QA must confirm on its own run.
+`VERIFIED` (2026-11-27, independent QA pass at `1a1e958`, local SQLite on Windows). Re-ran the full backend suite (183/938, 2 skipped), `ClaimSubmissionIdempotencyTest` (7 tests) and `portal.test.tsx` (22 of the 35 frontend tests) — all green. Independent probes beyond the shipped tests: replaying a key with a *different* payload (amount 999, different patient name) returns the originally created claim with its original values and one history row, so the contract is “first write wins” exactly as `docs/API.md` states; and a replay carrying an unrelated surviving `draft_id` returns the original claim without deleting that draft. The migration is additive and reversible, the unique index is `(user_id, submission_key)` so one client cannot block another, and `NULL` keys keep the legacy path (covered by test). Concurrency and MySQL row-lock behaviour were NOT executed (FNC-006), so the `UniqueConstraintViolationException` race branch is verified by inspection only. One duplicate path lies outside this fix's scope and is recorded as FNC-009: the key lives only in a `useRef`, so a full page reload after a committed-but-unacknowledged POST generates a new key.
 
 ### [FNC-003] Email verification cannot be completed in manual mode because the link origin never matches the frontend
 
 - Type: BUG
 - Priority: P2 - Medium
-- Status: READY_FOR_ENGINEERING
+- Status: FIXED_PENDING_QA
 - Affected role(s): all roles using email verification (clients, analysts, admins)
 - Affected workflow: account email verification, and email notifications that require a verified address
 - Environment: Manual VM (frontend `:5173`, API `:8000`); Docker VM shares one origin and is not affected by this path
@@ -810,9 +812,20 @@ A frontend unit test for the accepted/rejected URL shapes (API origin, page orig
 
 None; the recorded contract already says the frontend preserves the signed URL.
 
+**Implementation notes (2026-11-27, Batch 2, commit `8e8fbc8`)**
+
+- `Health_Guard-frontend/src/app/portal/Profile.tsx`: `acceptedVerificationOrigins(pageOrigin, configuredApiOrigin)` returns the page origin plus the configured API origin (`VITE_BACKEND_URL`, defaulting to `http://127.0.0.1:8000`, the same value the Vite proxy uses). `verificationRequestPath(raw, origins)` rejects a foreign origin, any path outside `/api/email/verify/`, a link without `expires` or `signature`, and an unparsable/empty value; otherwise it returns the relative path (`/email/verify/…?expires=…&signature=…`) that the api client sends through its own `/api` base, exactly as before.
+- Nothing on the signing side changed: the link is still signed for `APP_URL` with the same lifetime, the `signed` middleware and the user-identity check are untouched, and only the two allow-listed origins are accepted — not an arbitrary origin.
+- `docs/API.md` records the origin rule and states that the server still validates the signature.
+
+**Tests added and run (2026-11-27, commit `8e8fbc8`)**
+
+- `MigrationAndLifecycleTest::test_verification_email_wraps_the_api_signed_url_for_the_frontend`: captures the real `VerifyEmail` notification, asserts the `FRONTEND_URL/verify-email?url=` wrapper, extracts the signed API-origin URL and uses it to verify the user (200, `email_verified_at` set).
+- `portal.test.tsx` “email verification link guard”: accepts the API origin and the page origin (both resolve to the same relative path) and rejects a foreign origin, a non-verification path, a missing signature and an empty value.
+
 **Verification result**
 
-PENDING — not yet implemented or verified.
+`FIXED_PENDING_QA` (2026-11-27, commit `8e8fbc8`, local SQLite/Windows). Targeted PHPUnit (`SecurityUploadTest|MigrationAndLifecycleTest|ProductWorkflowsTest`) 50 tests / 260 assertions / 2 skipped OK; full backend 187 tests / 966 assertions / 2 skipped OK. Frontend 40 Vitest tests pass, typecheck/lint clean, security tests 5 pass, production build succeeds. Not verified: any browser run of `/verify-email` and any manual-VM run — `main.tf` pins the VM checkout to `BRANCH=main`, so the engineering branch cannot be exercised there (FNC-007).
 
 ### [FNC-004] Deactivating an analyst leaves their assigned claims permanently undecidable
 
@@ -879,7 +892,7 @@ BLOCKED on the owner decision; no implementation exists.
 
 - Type: CONTRADICTION
 - Priority: P3 - Low
-- Status: READY_FOR_ENGINEERING
+- Status: FIXED_PENDING_QA
 - Affected role(s): analyst, administrator
 - Affected workflow: enabling two-factor authentication
 - Environment: Not environment-specific
@@ -928,11 +941,20 @@ Backend assertion on the setup response keys; frontend test that the setup panel
 
 None — the existing API contract already defines `uri`, or the API doc can be narrowed to `secret` if the owner prefers key-only setup.
 
+**Implementation notes (2026-11-27, Batch 2, commit `8e8fbc8`)**
+
+- `Profile.tsx` now declares the API's actual response (`{secret, uri}`) and renders the `otpauth://` URI as a link (“Buka di aplikasi authenticator” / “Open in authenticator app”) beside the manual key, so scanning or opening the account in an authenticator app is possible without changing the server contract.
+- No TOTP algorithm, recovery-code, enable/disable, replay or rate-limit behaviour changed; the response still carries `Cache-Control: no-store`.
+- `docs/API.md` already documented `{secret,uri}`; it now also states that the frontend links to the URI.
+
+**Tests added and run (2026-11-27, commit `8e8fbc8`)**
+
+- `ProductWorkflowsTest::test_totp_known_vector_replay_and_recovery_code` now asserts the setup response structure (`secret`, `uri`, no `otpauth_url`) and that `uri` starts with `otpauth://totp/`, then continues through confirm, replay rejection and single-use recovery codes.
+- `portal.test.tsx` “two-factor setup panel” mounts `Profile`, submits the setup password and asserts the rendered link's `href` is the returned URI and the secret is displayed.
+
 **Verification result**
 
-PENDING.
-
-### [FNC-006] MySQL-specific migration, import and concurrency behaviour is unverified at this commit
+`FIXED_PENDING_QA` (2026-11-27, commit `8e8fbc8`, local). Same runs as FNC-003: targeted and full PHPUnit green (187/966, 2 skipped), Pint clean, frontend 40 tests plus typecheck/lint/security/build green. Not verified: opening the URI in a real authenticator app, and any browser or VM run. MySQL-specific migration, import and concurrency behaviour is unverified at this commit
 
 - Type: ENVIRONMENT
 - Priority: P2 - Medium
@@ -1044,6 +1066,208 @@ BLOCKED.
 
 Engineering note (2026-11-27, Batch 1 session): the Azure CLI is authenticated to the expected “Azure for Students” subscription, Terraform `main.tf` state holds no resources and no VM exists, so a temporary apply would have been technically possible. It was not applied because this batch does not require VM runtime proof and `main.tf` is the full deployment stack, not a disposable minimal VM: provisioning clones `/opt/healthguard` on the hard-coded branch `main` and enables a 10-minute `healthguard-sync` timer that fetches `origin/main` and rebuilds. A VM from this configuration cannot stably run a non-`main` engineering branch, and opening HTTP to `*` for a proof already covered by feature tests would exceed the batch scope. Resolving FNC-007 needs either a Test-VM mode in Terraform with a configurable branch and the auto-update timer deferred, or explicit owner instructions for a session where VM evidence is mandatory.
 
+### [FNC-008] Committed `docs/TEST-COVERAGE.md` begins with a mis-encoded line
+
+- Type: DOC_DRIFT
+- Priority: P3 - Low
+- Status: FIXED_PENDING_QA
+- Affected role(s): maintainers and QA readers
+- Affected workflow: documentation fidelity of the test-coverage map
+- Environment: Not environment-specific
+- First observed commit: `1a1e958`
+- Related findings: FNC-001
+
+**Preconditions**
+
+None.
+
+**Steps to reproduce**
+
+1. On branch `agent/healthguard/fnc-001-fnc-002`, read the committed blob: `git show HEAD:docs/TEST-COVERAGE.md | head -1`.
+
+**Expected behavior**
+
+The heading reads `# Ticket coverage — 22 November 2026`, as it does on `main`.
+
+**Actual behavior**
+
+The committed heading is `# Ticket coverage â€” 22 November 2026` — UTF-8 bytes `C3 A2 E2 82 AC E2 80 9D` — an em dash decoded as cp1252 and re-encoded. The working copy currently holds the correct characters, but that correction belongs to the uncommitted Stage 0 edits, so the branch commit itself still ships the corruption.
+
+**Evidence**
+
+- `git show HEAD:docs/TEST-COVERAGE.md | sed -n 1p | od -c` → `#   T i c k e t   c o v e r a g e   303 242 342 202 254 342 200 235 ...`
+- `git show main:docs/TEST-COVERAGE.md | sed -n 1p` → `# Ticket coverage — 22 November 2026`
+- `git grep -n "â€" HEAD` matches only this line, and a `U+FFFD` scan of HEAD found no other replacement characters.
+
+**Impact**
+
+The published coverage map opens with a corrupted heading. The corruption also shows the file was written through a non-UTF-8 path, so later edits to it can silently damage other non-ASCII text.
+
+**Likely root cause**
+
+Confirmed: the Batch 1 edit wrote the file with the console's legacy code page instead of UTF-8.
+
+**Proposed correction**
+
+Commit the already-correct working-copy line as UTF-8 and confirm the blob with `git show HEAD:docs/TEST-COVERAGE.md | head -1 | od -c`. Do not reformat the rest of the file.
+
+**Required regression test**
+
+Not automatable beyond the byte check; a CI step that greps `docs/` for `â€` and `U+FFFD` would prevent recurrence.
+
+**Owner decision required**
+
+None.
+
+**Implementation notes (2026-11-27, Batch 2, commit `8e8fbc8`)**
+
+- The committed blob was rebuilt from `HEAD:docs/TEST-COVERAGE.md` with only line 1 replaced by `# Ticket coverage — 22 November 2026` (UTF-8 `E2 80 94`) and staged directly, so the pre-existing Stage 0 working-copy edits to the same file stayed uncommitted and untouched. `git diff` of the blob against `HEAD` is that one line; no other content moved.
+
+**Verification result**
+
+`FIXED_PENDING_QA` (2026-11-27). `git show HEAD:docs/TEST-COVERAGE.md | sed -n 1p | od -c` → `#   T i c k e t   c o v e r a g e   342 200 224   2 2 ...` (valid UTF-8 em dash). A `grep -c 'â€'` over the committed blob returns 1 → 0 after this commit, and a `U+FFFD` scan of `HEAD` found no other replacement characters (checked against the batch commit).
+
+### [FNC-009] A reload after a committed-but-unacknowledged submission still creates a duplicate claim
+
+- Type: DATA_INTEGRITY
+- Priority: P2 - Medium
+- Status: FIXED_PENDING_QA
+- Affected role(s): client (creates), analyst (receives the duplicate)
+- Affected workflow: claim submission whose response is lost
+- Environment: Not environment-specific
+- First observed commit: `1a1e958`
+- Related findings: FNC-002
+
+**Preconditions**
+
+`/claims/new` with no saved draft, and form data that passes validation.
+
+**Steps to reproduce**
+
+1. Fill the form and press submit.
+2. Let the POST reach the server and commit while the response never arrives (offline mode, or a proxy dropping the connection immediately after the request is sent).
+3. Reload `/claims/new` and submit the same data again.
+
+**Expected behavior**
+
+The retry continues the existing claim, which FNC-002 now guarantees for a same-page retry.
+
+**Actual behavior**
+
+Two claims. `submissionKey` is created by `useRef` at mount, so a reload generates a fresh key and the server correctly treats it as a new submission; `savedClaim` is component state and is likewise lost.
+
+**Evidence**
+
+- `Health_Guard-frontend/src/app/portal/ClaimForm.tsx:110-114` — key generated per mount and never persisted; `:181-194` — `savedClaim` only set from a received response.
+- `Health_Guard-backend/app/Services/ClaimService.php` — dedupes on `(user_id, submission_key)` only; no content-based guard exists.
+- Cycle 3 probes confirmed that the same key replays and that distinct keys create distinct claims by design, so the gap is the key's lifetime, not the server rule.
+
+**Impact**
+
+The duplicate-claim outcome FNC-002 was raised for is still reachable through the most common user reaction to a stalled submit. Clients cannot withdraw a claim, and every duplicate notifies all active analysts and enters the review queue.
+
+**Likely root cause**
+
+Confirmed: the idempotency key has a page-session lifetime rather than a form-submission lifetime.
+
+**Proposed correction**
+
+Persist the opaque key across reloads for the same form instance — for example `sessionStorage` containing only the key (no patient data), cleared once the claim ID is known — or bind the key to a server draft created on first submit and reuse the draft ID. Keep the existing per-file retry unchanged.
+
+**Required regression test**
+
+Frontend test: submit, simulate a failed response, remount the form, submit again with the persisted key and assert a single claim (replay 200). Backend replay coverage already exists.
+
+**Owner decision required**
+
+None for the defect; record the chosen persistence rule in `docs/API.md`.
+
+**Implementation notes (2026-11-27, Batch 2, commit `8e8fbc8`)**
+
+- `ClaimForm.tsx` no longer creates the key in `useRef` at mount. The key is created lazily on the first POST and persisted in `sessionStorage` under `healthguard.claim-submission-key` — only the opaque UUID, never a name, amount, date, provider or any other claim field — so a reload of `/claims/new` (with or without a draft) sends the same key and the Batch 1 server rule replays the existing claim with 200. `sessionStorage` is per tab, so two tabs of the same client still create two independent claims by design.
+- The key is removed as soon as the API returns the claim, so a later, genuinely new submission in the same tab gets a fresh key and cannot replay onto an already acknowledged claim. Edit mode (`/claims/:id/edit`) never creates one. If storage is unavailable the key stays in memory and behaviour degrades to the Batch 1 per-page-session rule.
+- Per-file upload retry, the draft linkage and the server-side replay/unique-index rules are unchanged.
+- `docs/API.md` records the key lifetime, that only the key is stored and that it is cleared when the claim is returned.
+
+**Tests added and run (2026-11-27, commit `8e8fbc8`)**
+
+- `portal.test.tsx` “submission key lifetime / replays the same key after a reload when the response was lost”: submits a loaded draft with a failing response, unmounts, remounts and submits again; both POSTs carry the same `submission_key`, and the `sessionStorage` contents contain no patient data.
+- `portal.test.tsx` “clears the key once the server acknowledges the claim”: the stored key is gone after a 200.
+- Server-side replay, one-history-entry, one-notification-set, draft retirement and claim-number coverage remains the Batch 1 `ClaimSubmissionIdempotencyTest` (still green in the full run).
+
+**Verification result**
+
+`FIXED_PENDING_QA` (2026-11-27, commit `8e8fbc8`, local). Frontend 40 Vitest tests pass (typecheck/lint clean); backend full suite 187/966 with 2 MySQL-only skips, so the server contract the replay depends on is still green. Not verified: a real browser reload against a live API, Playwright/E2E, and any VM run. Concurrency of two simultaneous POSTs still rests on the Batch 1 unique index, which was verified by inspection only (FNC-006).
+
+### [FNC-010] Profile-photo rejections list DOC/DOCX as acceptable formats
+
+- Type: CONTRADICTION
+- Priority: P3 - Low
+- Status: FIXED_PENDING_QA
+- Affected role(s): client, analyst, administrator (own profile photo)
+- Affected workflow: profile photo upload
+- Environment: Not environment-specific
+- First observed commit: `1a1e958`
+- Related findings: FNC-001
+
+**Preconditions**
+
+Signed in; open Profile, or call the endpoint directly.
+
+**Steps to reproduce**
+
+1. `POST /api/user/photo` with a `.docx` or `.doc` file.
+
+**Expected behavior**
+
+The rejection names only the formats a photo may have: JPG, JPEG, PNG.
+
+**Actual behavior**
+
+HTTP 422 with three messages, the last reading “The photo contents must match its PDF, JPG, JPEG, PNG, DOC, or DOCX extension.” The upload is correctly refused; only the explanation is wrong.
+
+**Evidence**
+
+- `Health_Guard-backend/app/Rules/SafeUpload.php:51` — one unconditional message for every caller.
+- `Health_Guard-backend/app/Rules/SafeUpload.php:46` — `imagesOnly` narrows the allowed map to jpg/jpeg/png.
+- `Health_Guard-backend/app/Http/Requests/ProfilePhotoRequest.php:17` — `new SafeUpload(imagesOnly: true)`.
+- Cycle 3 probe: `POST /api/user/photo` with `photo.docx` → 422 `{"photo":["The photo field must be an image.","The photo field must be a file of type: jpg, jpeg, png.","The photo contents must match its PDF, JPG, JPEG, PNG, DOC, or DOCX extension."]}`.
+
+**Impact**
+
+Low: the user is told a Word document is acceptable for a profile photo in the same response that refuses one, which invites a pointless retry. Nothing is wrongly accepted.
+
+**Likely root cause**
+
+Confirmed: Batch 1 widened the shared message without branching on `imagesOnly`.
+
+**Proposed correction**
+
+Derive the message from the allowed set for the current mode (or pass a label into the rule), leaving the claim-evidence wording unchanged.
+
+**Required regression test**
+
+Extend the existing profile-photo rejection test to assert the message names only JPG/JPEG/PNG, while the document test keeps asserting DOC/DOCX in its message.
+
+**Owner decision required**
+
+None.
+
+**Implementation notes (2026-11-27, Batch 2, commit `8e8fbc8`)**
+
+- `SafeUpload` now derives the failure sentence from the caller's mode: `imagesOnly` says “must match its JPG, JPEG, or PNG extension”, claim evidence keeps “PDF, JPG, JPEG, PNG, DOC, or DOCX”. The accepted sets, signatures, container checks and the 10 MB / 2 MB limits are untouched, so only the explanation changed.
+- `docs/API.md` also corrects the profile-photo row to JPG/JPEG/PNG (it listed “JPG/PNG”).
+
+**Tests added and run (2026-11-27, commit `8e8fbc8`)**
+
+- `SecurityUploadTest::test_profile_photo_rejection_names_only_image_formats`: a real DOCX photo is 422 and the message contains “JPG, JPEG, or PNG” and neither “DOC” nor “PDF”, with public storage still empty.
+- `SecurityUploadTest::test_document_rejection_still_names_document_formats`: a non-Word ZIP named `.zip` on the claim endpoint is 422, the message still names “PDF, JPG, JPEG, PNG, DOC, or DOCX”, and neither private storage nor the `documents` table gained a row.
+- The existing `invalidPhotos` provider gained a `Word document` case (`photo.docx` with real DOCX bytes).
+
+**Verification result**
+
+`FIXED_PENDING_QA` (2026-11-27, commit `8e8fbc8`, local SQLite/Windows). Targeted PHPUnit 50 tests / 260 assertions / 2 skipped OK; full backend 187 tests / 966 assertions / 2 skipped OK; Pint clean. Not verified: a browser upload of a DOCX photo against the running API, and any VM run.
+
 ### Owner decisions required
 
 #### [FNC-004] Claims assigned to a deactivated analyst
@@ -1064,10 +1288,49 @@ Recommendation: (a) plus (b). No implementation is assigned until the owner choo
 | 0 | 2026-11-27 | Setup | Repository snapshot | Created this audit process. No application code inspected or modified by this document. | Start Phase 0 with Prompt A. |
 | 1 | 2026-11-27 | Prompt A — independent QA auditor | `20f7601dd7e035a1d87ebceca340926ca24e0a33` | Initial functional audit: read README/ADR/API/QA/cleanup report, routes, controllers, service, policies, enums, requests, resources, models, migrations, frontend routes/context/pages/shared utilities, Compose/Docker/CI, and the test suites. Ran PHPUnit (170/864, 2 skipped), Vitest (34), typecheck, ESLint, Node security tests, Vite build, and a Tinker upload-validation probe. Reconstructed the role, lifecycle, document, notification, payment and retention flows. | 7 findings: 2 P1 READY (FNC-001, FNC-002), 1 P1 owner decision (FNC-004), 1 P2 READY (FNC-003), 1 P3 READY (FNC-005), 2 P2 BLOCKED environment gaps (FNC-006, FNC-007). No P0. Next: Prompt B Batch 1 = FNC-001 + FNC-002; then Prompt A post-engineering QA. |
 | 2 | 2026-11-27 | Prompt B — implementation engineer | `1a1e958f2aea0513a4895d69f05edd4d7441401a` on `agent/healthguard/fnc-001-fnc-002` | Batch 1 only: FNC-001 (single DOC/DOCX-aware upload whitelist with container validation) and FNC-002 (submission key + unique index + in-transaction draft retirement, 200 replay). Added `ClaimSubmissionIdempotencyTest`, extended `SecurityUploadTest` and `portal.test.tsx`, updated `docs/API.md` and `docs/TEST-COVERAGE.md`. Ran targeted PHPUnit (35/165), full PHPUnit (183/938, 2 skipped), Pint, Vitest (35), typecheck, ESLint, security tests and Vite build. | Both findings `FIXED_PENDING_QA`. No VM/Docker/MySQL run; Terraform not applied (see FNC-007 note). Next: Prompt A independent QA of FNC-001 and FNC-002 on `1a1e958`. |
+| 3 | 2026-11-27 | Prompt A — independent QA and regression | `1a1e958` (code) / `5d48a41` (evidence commit); tracker edited on `agent/healthguard/fnc-001-fnc-002` | Batch 1 QA only: inspected the full diff, re-read `SafeUpload`/`ClaimService`/`ClaimInputRequest`/`ProfilePhotoRequest`/`ClaimForm`, and re-ran backend PHPUnit (183/938, 2 skipped), Pint (9 files), Vitest (35), typecheck, ESLint, security tests and the Vite build. Wrote and deleted two throwaway probe classes covering changed-payload replay, a foreign surviving draft, a DOCX missing `[Content_Types].xml`, DOCX/DOC on the photo endpoint, and the photo error payload. | FNC-001 and FNC-002 `VERIFIED`. Three new findings: FNC-008 (P3 mis-encoded coverage-doc line), FNC-009 (P2 reload after a lost response still duplicates), FNC-010 (P3 photo message names DOC/DOCX). No regressions in the existing suites. Next: owner decides FNC-004; Prompt B Batch 2. |
+| 4 | 2026-11-27 | Prompt B — implementation engineer | `8e8fbc8` on `agent/healthguard/fnc-001-fnc-002` | Batch 2 only: FNC-003 (frontend accepts the API origin the signed link uses, still rejects foreign origins/paths/unsigned links), FNC-005 (setup panel declares and renders `uri`), FNC-008 (committed coverage heading restored as UTF-8 without touching the Stage 0 working copy), FNC-009 (opaque submission key persisted in `sessionStorage` until the claim is acknowledged), FNC-010 (upload rejection text scoped to the caller's formats). Added two backend tests, three frontend tests, extended the photo provider, updated `docs/API.md`. Ran targeted PHPUnit (50/260, 2 skipped), full PHPUnit (187/966, 2 skipped), Pint, Vitest (40), typecheck, ESLint, security tests and Vite build. | All five `FIXED_PENDING_QA`. No VM, Docker, MySQL, Playwright or browser run: `main.tf` hard-codes `BRANCH=main`, so no session VM was provisioned and Terraform was not applied or destroyed. Next: Prompt A independent QA of Batch 2 at `8e8fbc8`. |
 
-### Next engineering batch — Prompt B, Batch 1
+### Engineering batches
 
-**STATUS: IMPLEMENTED — see cycle 2 and the FNC-001/FNC-002 implementation notes. Awaiting Prompt A independent verification.**
+#### Batch 2 — next assignment (Prompt B)
+
+**STATUS: IMPLEMENTED — `FIXED_PENDING_QA` at `8e8fbc8`; awaiting independent QA.** Batch 1 is closed: FNC-001 and FNC-002 are `VERIFIED` (cycle 3).
+
+Assign only these finding IDs; everything else is out of scope.
+
+**FNC-003 — email verification link origin (P2)**
+
+- Acceptance: the link generated with `APP_URL` at the API origin and `FRONTEND_URL` at the frontend origin verifies the account when opened from the frontend page; a foreign origin, a missing signature and a tampered signature are still rejected; the chosen origin rule is stated in `docs/API.md`.
+- Regression scope: `AppServiceProvider` link generation, `routes/api.php`, `Profile.tsx` guard, `vite.config.ts` proxy, existing auth/security tests.
+- Exclusions: no change to signature lifetime, no new mail provider, no change to the signed middleware.
+
+**FNC-005 — two-factor setup response field (P3)**
+
+- Acceptance: frontend and API agree on the setup response (`secret`, `uri`); the `otpauth://` URI is rendered, or the API contract is narrowed to key-only; a contract assertion covers the response keys.
+- Regression scope: `AccountController` setup/confirm/recovery, `Profile.tsx` setup panel, existing 2FA tests, `docs/API.md`.
+- Exclusions: no change to the TOTP algorithm, recovery codes or enable/disable rules.
+
+**FNC-008 — mis-encoded `docs/TEST-COVERAGE.md` line (P3)**
+
+- Acceptance: `git show HEAD:docs/TEST-COVERAGE.md | head -1` is valid UTF-8 with an em dash (the working copy already holds the correct text, so committing it clears the defect), and no other non-ASCII line in the file is corrupted.
+- Regression scope: that single file; do not rewrite unrelated content.
+- Exclusions: no content changes beyond restoring the intended characters.
+
+**FNC-009 — reload after a lost response still duplicates a claim (P2)**
+
+- Acceptance: submit, lose the response, reload `/claims/new`, submit again → one claim, one `submitted` history entry and one notification set; the mechanism stores no patient data.
+- Regression scope: `ClaimForm` key lifecycle, `POST /claims` replay, draft linkage, `portal.test.tsx`, `upload-recovery.spec.ts`.
+- Exclusions: no change to claim fields or statuses; no PHI in `localStorage`; no new background job.
+- Note: persisting only the opaque key in `sessionStorage`, or reusing a server draft as the key, are both acceptable; record the chosen rule in `docs/API.md`.
+
+**FNC-010 — profile-photo rejection text names DOC/DOCX (P3)**
+
+- Acceptance: the `imagesOnly` failure message names only JPG/JPEG/PNG; the claim-evidence message keeps DOC/DOCX.
+- Regression scope: `SafeUpload`, `ProfilePhotoRequest`, `DocumentUploadRequest`, the photo and document cases of `SecurityUploadTest`.
+- Exclusions: no change to the accepted sets themselves.
+
+#### Batch 1 — closed (FNC-001, FNC-002 `VERIFIED`)
 
 Assign only these finding IDs; everything else is out of scope.
 
@@ -1084,7 +1347,7 @@ Assign only these finding IDs; everything else is out of scope.
 - Exclusions: no change to the claim fields, statuses, amounts or resubmission rules; no new background job; no change to draft privacy or the no-PHI-in-localStorage rule.
 - Requires `docs/API.md` to state the replay behaviour and its response code.
 
-Do not start FNC-003, FNC-004 or FNC-005 in this batch. FNC-004 must not be implemented before the owner decision is recorded.
+Batch 1 is closed; the same exclusions carry into future batches. FNC-004 must not be implemented before the owner decision is recorded, and FNC-006/FNC-007 stay blocked on environment access.
 
 ## 13. Final functional acceptance criteria
 
