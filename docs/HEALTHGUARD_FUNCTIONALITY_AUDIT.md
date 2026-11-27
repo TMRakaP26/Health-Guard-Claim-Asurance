@@ -1125,7 +1125,7 @@ None.
 
 **Verification result**
 
-`FIXED_PENDING_QA` (2026-11-27). `git show HEAD:docs/TEST-COVERAGE.md | sed -n 1p | od -c` → `#   T i c k e t   c o v e r a g e   342 200 224   2 2 ...` (valid UTF-8 em dash). A `grep -c 'â€'` over the committed blob returns 1 → 0 after this commit, and a `U+FFFD` scan of `HEAD` found no other replacement characters (checked against the batch commit).
+`FIXED_PENDING_QA` (2026-11-27). `git show HEAD:docs/TEST-COVERAGE.md | sed -n 1p | od -c` → `#   T i c k e t   c o v e r a g e   342 200 224   2 2 ...` (valid UTF-8 em dash). `git show HEAD:docs/TEST-COVERAGE.md | grep -c 'â€'` returns 0 after this commit (it returned 1 at `5d48a41`), and `git grep -c $'\uFFFD' HEAD -- docs` matches nothing. `git grep 'â€' HEAD` now matches only this tracker's own quoted description of the corruption (FNC-008 evidence), not copied content.
 
 ### [FNC-009] A reload after a committed-but-unacknowledged submission still creates a duplicate claim
 
