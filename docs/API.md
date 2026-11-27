@@ -43,7 +43,7 @@ GET /claims accepts q(max255; claim ID/patient/provider/type), status, date_from
 
 GET /claims/unassigned and /claims/my-assignments are analyst aliases. GET /claims/{id} is allowed for owner or staff.
 
-POST /claims (client): client_name,type,provider_name required strings≤255; amount>0≤99999999.99 with≤2 decimals; optional bpjs_number≤30, patient_date_of_birth/service_date≤today. Creates Pending + submitted history.
+POST /claims (client): client_name,type,provider_name required strings≤255; amount>0≤99999999.99 with≤2 decimals; optional bpjs_number≤30, patient_date_of_birth/service_date≤today. Optional submission_key(8–64 chars) and draft_id (the client's own draft). Creates Pending + submitted history and 201; sending the same submission_key again returns the existing claim with 200 and creates no second claim, history entry or notification. Creating the claim deletes its draft; a foreign or unknown draft_id is 404.
 
 PUT /claims/{id} (owner): same fields, optional on update. Only Rejected/Needs Info/Partially Approved without payment may resubmit. Preserves assignment/current notes, snapshots previous data, resets approved_amount=null and status Pending.
 

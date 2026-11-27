@@ -1,4 +1,4 @@
-# Ticket coverage — 22 November 2026
+# Ticket coverage â€” 22 November 2026
 
 ## Revised automated acceptance
 
@@ -48,10 +48,11 @@ Tests exercise the replacements rather than adding tests for removed components.
 | status | decisionCases: all five strings, empty, missing, wrong case, unknown |
 | notes | decisionCases: null, empty, normal, 4000/4001; mandatory notes for Rejected/Needs Info |
 | per_page | paginationCases: default, 1, 100, 0, 101, negative, nonnumeric |
-| document | SecurityUploadTest: actual-byte PDF/PNG/JPEG, MIME mismatch, executable, empty, exact 10 MB and one byte over |
+| document | SecurityUploadTest: actual-byte PDF/PNG/JPEG/DOCX/DOC, non-Word ZIP renamed .docx, DOC with PDF bytes, MIME mismatch, executable, empty, exact 10 MB and one byte over; DOCX fulfils a document request and records history |
 | photo | SecurityUploadTest: PNG/JPEG, GIF/WebP rejection, MIME mismatch, empty, exact 2 MB and one byte over |
 | claim/document IDs | ValidationBoundaryTest unknown/malformed IDs; SecurityAuthorizationTest ownership and document/claim mismatch; ProductWorkflowsTest history ownership |
 | Failed mutations | ValidationBoundaryTest asserts no claim/history/notification is created for rejected input |
+| Claim submission replay | ClaimSubmissionIdempotencyTest: replayed key -> one claim/history/notification and 200, no consumed claim number; distinct keys/users; draft retired after creation; foreign draft 404; missing key keeps legacy behaviour |
 
 ## TEST-04: components and browser scenarios
 

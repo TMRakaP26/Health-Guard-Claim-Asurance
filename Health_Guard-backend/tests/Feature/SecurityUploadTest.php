@@ -68,15 +68,16 @@ class SecurityUploadTest extends TestCase
             'png content with pdf extension' => ['file.pdf', 'PNG', 0],
             'empty file' => ['empty.pdf', '', 0],
             'one byte above 10 MB' => ['large.pdf', '%PDF-1.4 test', 10 * 1024 * 1024 + 1],
+            'zip that is not a Word document' => ['file.docx', self::zip(['notes.txt' => 'not word']), 0],
+            'docx behind an executable extension' => ['file.exe', self::docx(), 0],
+            'legacy doc with pdf content' => ['file.doc', '%PDF-1.4 test', 0],
         ];
     }
 
     #[DataProvider('invalidDocuments')]
     public function test_invalid_documents_are_rejected(string $name, string $content, int $bytes): void
     {
-        if ($content === 'PNG') {
-            $content = base64_decode(self::PNG);
-        }
+        $content = self::content($content);
         if ($bytes) {
             $content = str_pad($content, $bytes, ' ');
         }
@@ -89,13 +90,50 @@ class SecurityUploadTest extends TestCase
 
     public static function validDocuments(): array
     {
-        return ['PDF' => ['evidence.pdf', '%PDF-1.4 test'], 'PNG' => ['evidence.png', 'PNG'], 'JPEG' => ['evidence.jpg', base64_decode(self::JPEG)]];
+        return ['PDF' => ['evidence.pdf', '%PDF-1.4 test'], 'PNG' => ['evidence.png', 'PNG'],
+            'JPEG' => ['evidence.jpg', base64_decode(self::JPEG)], 'DOCX' => ['evidence.docx', 'DOCX'],
+            'legacy DOC' => ['evidence.doc', 'DOC']];
+    }
+
+    /** Minimal stored-entry ZIP so DOCX fixtures do not depend on ext-zip. */
+    private static function zip(array $entries): string
+    {
+        $data = '';
+        $central = '';
+        foreach ($entries as $name => $content) {
+            $offset = strlen($data);
+            $crc = crc32($content);
+            $length = strlen($content);
+            $data .= pack('VvvvvvVVVvv', 0x04034B50, 20, 0, 0, 0, 0, $crc, $length, $length, strlen($name), 0).$name.$content;
+            $central .= pack('VvvvvvvVVVvvvvvVV', 0x02014B50, 20, 20, 0, 0, 0, 0, $crc, $length, $length, strlen($name), 0, 0, 0, 0, 0, $offset).$name;
+        }
+
+        return $data.$central.pack('VvvvvVVv', 0x06054B50, 0, 0, count($entries), count($entries), strlen($central), strlen($data), 0);
+    }
+
+    private static function docx(): string
+    {
+        return self::zip([
+            '[Content_Types].xml' => '<?xml version="1.0"?><Types/>',
+            'word/document.xml' => '<?xml version="1.0"?><w:document/>',
+        ]);
+    }
+
+    private static function content(string $content): string
+    {
+        return match ($content) {
+            'PNG' => base64_decode(self::PNG),
+            'DOCX' => self::docx(),
+            // Compound File Binary header; libmagic reports the OLE container.
+            'DOC' => "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1".str_repeat("\0", 504),
+            default => $content,
+        };
     }
 
     #[DataProvider('validDocuments')]
     public function test_valid_documents_are_private_and_downloadable(string $name, string $content): void
     {
-        $content = $content === 'PNG' ? base64_decode(self::PNG) : $content;
+        $content = self::content($content);
         $response = $this->postJson('/api/claims/CLM-2026-001/documents', [
             'file' => $this->upload($name, $content),
         ])->assertCreated();
@@ -105,6 +143,29 @@ class SecurityUploadTest extends TestCase
         $this->assertNotSame('documents/'.$name, $path);
         $this->getJson('/api/claims/CLM-2026-001/documents/'.$response->json('id').'/download')
             ->assertOk()->assertStreamedContent($content);
+        $this->assertDatabaseHas('claim_histories', [
+            'claim_id' => $this->claim->id, 'event' => 'document_uploaded',
+        ]);
+    }
+
+    public function test_docx_upload_fulfils_an_open_document_request(): void
+    {
+        $analyst = User::factory()->create(['role' => 'analyst']);
+        Sanctum::actingAs($analyst);
+        $this->postJson('/api/claims/CLM-2026-001/assign')->assertOk();
+        $requestId = $this->postJson('/api/claims/CLM-2026-001/document-requests', [
+            'title' => 'Word report', 'instructions' => 'Upload the report',
+        ])->assertCreated()->json('id');
+
+        Sanctum::actingAs($this->claim->user);
+        $this->postJson('/api/claims/CLM-2026-001/documents', [
+            'file' => $this->upload('report.docx', self::docx()), 'request_id' => $requestId,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('claim_document_requests', ['id' => $requestId, 'status' => 'fulfilled']);
+        $this->assertDatabaseHas('claim_histories', [
+            'claim_id' => $this->claim->id, 'event' => 'document_uploaded',
+        ]);
     }
 
     public function test_exact_document_size_limit_is_accepted(): void

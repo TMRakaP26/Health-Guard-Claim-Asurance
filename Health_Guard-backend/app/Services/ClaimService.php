@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Enums\ClaimStatus;
 use App\Models\Claim;
+use App\Models\ClaimDraft;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -15,11 +17,54 @@ class ClaimService
 
     public function create(User $actor, array $data): Claim
     {
-        Gate::forUser($actor)->authorize('create', Claim::class);
+        return $this->submit($actor, $data)['claim'];
+    }
 
-        return DB::transaction(function () use ($actor, $data) {
+    /**
+     * Create a claim once per client-generated submission key.
+     *
+     * @return array{claim: Claim, replayed: bool}
+     */
+    public function submit(User $actor, array $data): array
+    {
+        Gate::forUser($actor)->authorize('create', Claim::class);
+        $key = $data['submission_key'] ?? null;
+        $draftId = $data['draft_id'] ?? null;
+        unset($data['submission_key'], $data['draft_id']);
+
+        try {
+            return $this->createOnce($actor, $data, $key, $draftId);
+        } catch (UniqueConstraintViolationException $error) {
+            // A concurrent request won the insert race for this key.
+            if ($key === null) {
+                throw $error;
+            }
+            $existing = Claim::where('user_id', $actor->id)->where('submission_key', $key)
+                ->with('assignedAnalyst')->first();
+            if (! $existing) {
+                throw $error;
+            }
+
+            return ['claim' => $existing, 'replayed' => true];
+        }
+    }
+
+    /** @return array{claim: Claim, replayed: bool} */
+    private function createOnce(User $actor, array $data, ?string $key, ?int $draftId): array
+    {
+        return DB::transaction(function () use ($actor, $data, $key, $draftId) {
             $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
             abort_unless($actor->is_active, 403);
+            if ($key !== null) {
+                $existing = Claim::where('user_id', $actor->id)->where('submission_key', $key)->lockForUpdate()->first();
+                if ($existing) {
+                    return ['claim' => $existing->load('assignedAnalyst'), 'replayed' => true];
+                }
+            }
+            if ($draftId !== null) {
+                // Only the owning client may convert a draft into this claim.
+                abort_unless(ClaimDraft::where('user_id', $actor->id)->whereKey($draftId)->exists(), 404);
+            }
             $year = now()->year;
             if (! DB::table('claim_sequences')->where('year', $year)->exists()) {
                 $maximum = Claim::where('claim_id', 'like', "CLM-$year-%")->pluck('claim_id')
@@ -32,13 +77,18 @@ class ClaimService
             $claim = Claim::create(array_merge($data, [
                 'claim_id' => sprintf('CLM-%d-%03d', $year, $next), 'user_id' => $actor->id,
                 'status' => ClaimStatus::Pending, 'date_submitted' => now(),
+                'submission_key' => $key,
             ]));
+            if ($draftId !== null) {
+                // The draft became this claim, so it can never be submitted again.
+                ClaimDraft::where('user_id', $actor->id)->whereKey($draftId)->delete();
+            }
             $this->history->record($claim, $actor, 'submitted', null, 'Pending', metadata: ['amount' => $claim->amount]);
             foreach (User::where('role', 'analyst')->where('is_active', true)->get() as $analyst) {
                 $this->notifications->send($analyst, $claim, 'claim_submitted', 'New claim submitted', 'A new claim needs review.');
             }
 
-            return $claim->load('assignedAnalyst');
+            return ['claim' => $claim->load('assignedAnalyst'), 'replayed' => false];
         }, 5);
     }
 

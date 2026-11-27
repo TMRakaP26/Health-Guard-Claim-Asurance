@@ -107,6 +107,11 @@ export function ClaimForm() {
     Number(params.get("draft")) || undefined,
   );
   const [savedClaim, setSavedClaim] = useState<string>();
+  // Stable per page session so a retried submit replays instead of duplicating.
+  const submissionKey = useRef(
+    globalThis.crypto?.randomUUID?.() ??
+      "submission-" + Date.now() + "-" + Math.random().toString(16).slice(2),
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
@@ -175,7 +180,13 @@ export function ClaimForm() {
       const r = await api.request<Claim>({
         url: id ? "/claims/" + id : "/claims",
         method: id ? "put" : "post",
-        data,
+        data: id
+          ? data
+          : {
+              ...data,
+              submission_key: submissionKey.current,
+              draft_id: draftId,
+            },
       });
       claimId = r.data.claim_id;
       setSavedClaim(claimId);
@@ -209,7 +220,7 @@ export function ClaimForm() {
         setUploaded((list) => [...list, key]);
       }
       if (files.some((file) => !confirmed.has(fileKey(file)))) return;
-      if (draftId) await api.delete("/drafts/" + draftId);
+      // The server retires the draft when it creates the claim.
       setDirty(false);
       toast.success(t("Klaim tersimpan", "Claim saved"));
       allowNavigation.current = true;

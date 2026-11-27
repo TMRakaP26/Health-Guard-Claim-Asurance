@@ -18,7 +18,9 @@ class DocumentUploadRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240', new SafeUpload],
+        // SafeUpload owns the extension/MIME/content whitelist so DOC and DOCX
+        // can be accepted without relaxing the PDF and image checks.
+        return ['file' => ['required', 'file', 'max:10240', new SafeUpload],
             'request_id' => 'sometimes|nullable|integer', 'message_id' => 'sometimes|nullable|integer'];
     }
 }

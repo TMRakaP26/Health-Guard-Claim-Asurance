@@ -16,6 +16,7 @@ class Claim extends Model
         'user_id',
         'assigned_to',
         'claim_id',
+        'submission_key',
         'client_name',
         'provider_name',
         'type',

@@ -9,6 +9,7 @@ import { ClaimForm } from "../src/app/portal/ClaimForm";
 import { LocaleProvider } from "../src/app/portal/locale";
 import { useAuth } from "../src/app/state/AuthContext";
 import {
+  fileAccept,
   formatAmount,
   normalizeAmount,
   rupiah,
@@ -360,6 +361,16 @@ it("validates upload boundaries and formats decimal currency", () => {
   expect(() =>
     validateFile(new File(["%PDF-1.4"], "receipt.pdf")),
   ).not.toThrow();
+  expect(() => validateFile(new File(["PK"], "report.docx"))).not.toThrow();
+  expect(() => validateFile(new File(["doc"], "report.doc"))).not.toThrow();
+  expect(fileAccept.split(",")).toEqual([
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".doc",
+    ".docx",
+  ]);
   expect(rupiah("1234.50")).toContain("1.234,50");
   expect(rupiah("1000")).toContain("1.000");
   expect(rupiah("1000")).not.toContain(",00");
@@ -368,6 +379,64 @@ it("validates upload boundaries and formats decimal currency", () => {
   expect(normalizeAmount("1.234,50")).toBe("1234.50");
   expect(formatAmount("1500000")).toBe("1.500.000");
   expect(formatAmount("100.50")).toBe("100,50");
+});
+
+describe("idempotent claim submission", () => {
+  it("sends a stable submission key with the owned draft and does not delete it again", async () => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({
+      data:
+        String(url) === "/drafts"
+          ? [
+              {
+                id: 9,
+                data: {
+                  client_name: "Patient",
+                  provider_name: "Hospital",
+                  disease_name: "Flu",
+                  type: "Outpatient",
+                  amount: "500.00",
+                  step: 4,
+                },
+                updated_at: "2026-01-01T00:00:00Z",
+              },
+            ]
+          : {
+              providers: [],
+              categories: [],
+              features: {},
+              max_amount: 99999999.99,
+            },
+    }));
+    vi.mocked(api.request).mockResolvedValue({ data: claim });
+    mount(<ClaimForm />, "/claims/new?draft=9");
+    expect(
+      await screen.findByRole("heading", {
+        name: "Langkah 4 dari 4: Tinjau",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hospital")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Kirim pengajuan" }),
+    );
+    await waitFor(() =>
+      expect(api.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "/claims",
+          method: "post",
+          data: expect.objectContaining({
+            submission_key: expect.any(String),
+            draft_id: 9,
+          }),
+        }),
+      ),
+    );
+    const sent = vi.mocked(api.request).mock.calls[0][0] as {
+      data: { submission_key?: string };
+    };
+    expect(sent.data.submission_key).toBeTruthy();
+    expect(api.delete).not.toHaveBeenCalled();
+  });
 });
 
 describe("client identity, disease and chat UX", () => {

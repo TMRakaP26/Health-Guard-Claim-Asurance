@@ -15,7 +15,7 @@ class ClaimInputRequest extends FormRequest
     {
         $required = $this->isMethod('POST') ? 'required' : 'sometimes';
 
-        return [
+        $rules = [
             'client_name' => "$required|string|max:255", 'type' => "$required|string|max:255",
             'disease_name' => 'sometimes|nullable|string|max:255',
             'description' => 'sometimes|nullable|string|max:4000',
@@ -25,5 +25,13 @@ class ClaimInputRequest extends FormRequest
             'patient_date_of_birth' => 'sometimes|nullable|date_format:Y-m-d|before_or_equal:today',
             'service_date' => 'sometimes|nullable|date_format:Y-m-d|before_or_equal:today',
         ];
+
+        if ($this->isMethod('POST')) {
+            // Submission replay protection; ignored by resubmission.
+            $rules['submission_key'] = 'sometimes|nullable|string|min:8|max:64';
+            $rules['draft_id'] = 'sometimes|nullable|integer|min:1';
+        }
+
+        return $rules;
     }
 }

@@ -101,7 +101,10 @@ class ClaimController extends Controller
 
     public function store(ClaimInputRequest $request)
     {
-        return response()->json((new ClaimResource($this->claims->create($request->user(), $request->validated())))->resolve(), 201);
+        $result = $this->claims->submit($request->user(), $request->validated());
+
+        // A replayed submission key returns the claim that already exists.
+        return response()->json((new ClaimResource($result['claim']))->resolve(), $result['replayed'] ? 200 : 201);
     }
 
     public function update(ClaimInputRequest $request, string $id)
