@@ -1,5 +1,19 @@
 # Docker, migrasi, backup dan pemulihan
 
+## Mode operasi
+
+Ada dua jalur runtime. Catat hasilnya terpisah: lulus di satu jalur bukan bukti untuk jalur lain.
+
+| Mode | Dipakai untuk | Ringkas |
+|---|---|---|
+| **Manual tanpa Docker** | Pengembangan harian dan pengujian manual tahap awal | Repository di-pull/disalin ke VM atau workstation, lalu API Laravel dan SPA Vite dijalankan langsung dengan PHP, Composer, Node/npm dan MySQL atau SQLite. **Docker Desktop tidak diperlukan** dan bukan prasyarat proyek. Langkah: [backend](Health_Guard-backend/README.md#pengembangan-lokal), [frontend](Health_Guard-frontend/README.md#pengembangan-lokal). |
+| **Docker Compose di VM** | Verifikasi container dan deployment | Seluruh isi dokumen ini. Dijalankan pada VM Azure atau mesin lain yang memang memiliki Docker Engine. |
+
+`main.tf` memprovision VM Azure: bootstrap memasang Docker, clone repository, membangun stack, lalu
+memasang timer yang memeriksa `origin/main` setiap 10 menit. Detail runtime mode manual di VM (versi
+PHP/Node/MySQL, service manager, lokasi checkout) **UNKNOWN** — belum tercatat di repository; catat
+saat audit Stage A dan jangan mengasumsikannya.
+
 ## Instalasi baru
 
 1. Salin root `.env.example` ke `.env`. Untuk produksi, set `APP_ENV=production`, `PUBLIC_URL=https://nama-host`, password DB/root unik dan kuat (minimal 16 karakter untuk DB).
@@ -54,7 +68,7 @@ Smoke mengharuskan MySQL, memakai HTTP melalui Nginx, memeriksa histori, menolak
 
 `mysql-check.php` mensyaratkan `APP_ENV=testing` dan MySQL. Script menjalankan pembuatan klaim oleh empat klien secara bersamaan, assignment oleh dua analis dengan tepat satu pemenang, pemeriksaan histori, serta EXPLAIN untuk ketersediaan indeks pemilik/tanggal. Ini pemeriksaan contention dasar, bukan benchmark beban produksi.
 
-`./docker/backup-safety-check.ps1` menguji penolakan manifest tidak lengkap, duplikat, dan checksum salah tanpa memanggil Docker. CI juga membuat fixture berisi data terenkripsi dan file privat, membuat ulang container tanpa menghapus volume, lalu memulihkan backup ke stack berbeda dan menjalankan smoke kembali. Hasil verifikasi lokal dicatat di [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+`./docker/backup-safety-check.ps1` menguji penolakan manifest tidak lengkap, duplikat, dan checksum salah tanpa memanggil Docker. CI juga membuat fixture berisi data terenkripsi dan file privat, membuat ulang container tanpa menghapus volume, lalu memulihkan backup ke stack berbeda dan menjalankan smoke kembali. Hasil verifikasi lokal dicatat di [bukti implementasi](docs/archive/implementation-evidence-2026-11.md).
 
 ## Produksi
 

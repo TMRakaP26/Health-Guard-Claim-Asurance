@@ -1,5 +1,10 @@
 # Ticket coverage — 22 November 2026
 
+> **Status: CURRENT — peta kriteria tiket ke tes otomatis.** Berlaku untuk suite dan nama tes saat ini;
+> angka kelulusan di bawah adalah bukti bertanggal 21–22 November 2026 pada revisi yang dicatat.
+> Bukti lengkap: [archive/implementation-evidence-2026-11.md](archive/implementation-evidence-2026-11.md).
+> Temuan fungsional aktif: [HEALTHGUARD_FUNCTIONALITY_AUDIT.md](HEALTHGUARD_FUNCTIONALITY_AUDIT.md).
+
 ## Revised automated acceptance
 
 Final result on 22 November: **9/9 E2E passed**; after the validation-summary correction,
@@ -52,7 +57,7 @@ Tests exercise the replacements rather than adding tests for removed components.
 | photo | SecurityUploadTest: PNG/JPEG, GIF/WebP rejection, MIME mismatch, empty, exact 2 MB and one byte over |
 | claim/document IDs | ValidationBoundaryTest unknown/malformed IDs; SecurityAuthorizationTest ownership and document/claim mismatch; ProductWorkflowsTest history ownership |
 | Failed mutations | ValidationBoundaryTest asserts no claim/history/notification is created for rejected input |
-| Claim submission replay | ClaimSubmissionIdempotencyTest: replayed key -> one claim/history/notification and 200, no consumed claim number; distinct keys/users; draft retired after creation; foreign draft 404; missing key keeps legacy behaviour |
+| Claim submission replay | ClaimSubmissionIdempotencyTest: replayed key → one claim/history/notification and 200, no consumed claim number; distinct keys/users; draft retired after creation; foreign draft 404; missing key keeps legacy behaviour |
 
 ## TEST-04: components and browser scenarios
 
@@ -80,13 +85,13 @@ Tests exercise the replacements rather than adding tests for removed components.
 TEST-04 has local passing evidence on 21 November: all five Playwright tests passed in 3.3 minutes
 on Chrome 157.0.8103.79 with disposable SQLite/storage, including upload recovery and step-focus
 assertions. Tested code revision: 3e85bab617625fc1cd521e71e604f87764e4f39b;
-later profile/admin changes are tracked separately in IMPLEMENTATION.md.
+later profile/admin changes are tracked separately in archive/implementation-evidence-2026-11.md.
 Typecheck/lint/build and 30 Vitest tests pass; 5 cookie-security tests also pass.
 Backend SQLite was rerun locally: 164 passed / 2 database-specific skips (847 assertions),
 with Pint passing. The MySQL evidence remains run 44481972881 at commit
 151ca213f30a568071e19a2916339ddc89b8742d: 165 passed / 1 database-specific skip (862 assertions).
 Current remote CI/PR status was not rechecked; historical failures and corrections are retained
-in IMPLEMENTATION.md rather than treated as current blockers.
+in archive/implementation-evidence-2026-11.md rather than treated as current blockers.
 
 ## Historical manual scope (superseded by the amendment above)
 

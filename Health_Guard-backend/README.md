@@ -413,7 +413,7 @@ php vendor/bin/phpunit --display-warnings
 | MigrationAndLifecycle | Import/migrasi dan lifecycle; beberapa kasus khusus database |
 | E2E di frontend | Browser dengan API nyata serta SQLite/storage disposable |
 
-CI menjalankan matriks SQLite/MySQL, bukan hanya SQLite. Smoke, concurrency dan restore Docker berada di folder [docker](../docker). Bukti bertanggal di [IMPLEMENTATION.md](../docs/IMPLEMENTATION.md); hasil SQLite tidak membuktikan kapasitas/restore MySQL produksi.
+CI menjalankan matriks SQLite/MySQL, bukan hanya SQLite. Smoke, concurrency dan restore Docker berada di folder [docker](../docker). Bukti bertanggal di [bukti implementasi](../docs/archive/implementation-evidence-2026-11.md); hasil SQLite tidak membuktikan kapasitas/restore MySQL produksi.
 
 ## Panduan perubahan
 

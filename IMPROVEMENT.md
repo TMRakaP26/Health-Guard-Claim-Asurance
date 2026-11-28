@@ -1,7 +1,17 @@
 # Master plan - HealthGuard claim assurance (Laravel + React -> production-ready)
 
+> **Status: HISTORICAL — CLOSED 26 November 2026. Dokumen ini bukan backlog aktif.**
+> Seluruh 64 tiket sudah `[x]` dan tidak ada yang terbuka; jangan membuka ulang tanpa bukti baru dari
+> kode saat ini. Tracker aktif untuk pekerjaan berikutnya adalah
+> [docs/HEALTHGUARD_FUNCTIONALITY_AUDIT.md](docs/HEALTHGUARD_FUNCTIONALITY_AUDIT.md) (audit kebenaran
+> fungsional Stage A). Keputusan produk yang berlaku ada di [docs/ADR.md](docs/ADR.md); kontrak HTTP di
+> [docs/API.md](docs/API.md). Bukti tes bertanggal untuk dokumen ini ada di
+> [docs/archive/implementation-evidence-2026-11.md](docs/archive/implementation-evidence-2026-11.md).
+> Angka tes di bawah adalah bukti pada revisi yang dicatat, bukan status CI HEAD saat ini. Bagian 2–3
+> menjelaskan baseline lama dan sengaja dipertahankan sebagai sejarah.
+
 Last updated: 2026-11-26 (backlog closed: 64/64 done under revised automated QA acceptance, decisions resolved; evidence is recorded
-in `docs/IMPLEMENTATION.md`).
+in `docs/archive/implementation-evidence-2026-11.md`).
 
 **Audience:** implementation agents working on this repository.
 
@@ -28,7 +38,7 @@ Earlier statements requiring manual evidence are historical and superseded by th
 duplicated field/help text in the validation summary, both targeted QA tests passed again
 (1.9 minutes); typecheck, lint, 33 component tests and production build also passed.
 Backend SQLite: 167 passed, 2 database-specific skips, 859 assertions; Pint passed.
-Cookie-security tests: 5 passed. Reports and exact scope are in docs/IMPLEMENTATION.md and
+Cookie-security tests: 5 passed. Reports and exact scope are in docs/archive/implementation-evidence-2026-11.md and
 docs/TEST-COVERAGE.md. MySQL/Compose and remote CI evidence remains historical.
 
 | Phase | Scope | Done | Total | Status | Remaining acceptance gate |
@@ -53,7 +63,7 @@ outside this backlog as operational acceptance work rather than pending tickets.
 
 ## 1. How to use this document
 
-1. Read README.md, docs/ADR.md and docs/IMPLEMENTATION.md for the current system. Sections 2-3 below describe the original baseline and risks; read section 4 for the target architecture.
+1. Read README.md, docs/ADR.md and docs/archive/implementation-evidence-2026-11.md for the current system. Sections 2-3 below describe the original baseline and risks; read section 4 for the target architecture.
 2. Execute workstreams in the order shown in section 6. Security work comes before feature work.
 3. Treat each work item ID (`SEC-01`, `DB-01`, `HIST-01`, etc.) as a ticket. One PR should normally cover one ticket or a small group of related tickets.
 4. Every ticket has acceptance criteria. Do not mark it `[x]` until those criteria and the relevant tests pass.
@@ -883,7 +893,7 @@ outstanding at that date were manual QA, manual keyboard/visual verification and
 audit, which the 22 November amendment replaced with automated checks and the closure entry below
 keeps outside this backlog. The old
 backend file_get_contents warnings were resolved. See the dated evidence in
-`docs/IMPLEMENTATION.md`; old PR/CI results are not assertions about the latest remote revision.
+`docs/archive/implementation-evidence-2026-11.md`; old PR/CI results are not assertions about the latest remote revision.
 
 ### Backlog closure (2026-11-26)
 
@@ -900,4 +910,4 @@ closure, so they are recorded as operational acceptance work, not as passed chec
 | Cutover of live data | Needs a maintenance window and reconciliation against a real backup | Operator |
 
 Reopen a closed ticket only if one of these becomes in-scope; add it with fresh acceptance
-criteria and evidence in `docs/IMPLEMENTATION.md` instead of reviving the old entry.
+criteria and evidence in `docs/archive/implementation-evidence-2026-11.md` instead of reviving the old entry.

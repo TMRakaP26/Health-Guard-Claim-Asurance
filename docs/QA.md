@@ -1,12 +1,17 @@
 # Verification and QA
 
+> **Status: CURRENT — prosedur verifikasi yang masih dipakai.** Catatan sesi bertanggal (21, 22, 26
+> November 2026) adalah bukti historis pada revisi yang dicatat, bukan hasil untuk HEAD saat ini.
+> Temuan dan status kebenaran fungsional dicatat di
+> [HEALTHGUARD_FUNCTIONALITY_AUDIT.md](HEALTHGUARD_FUNCTIONALITY_AUDIT.md), bukan di dokumen ini.
+
 ## Current acceptance scope — 22 November 2026
 
 **Final result:** all 9 browser tests passed (8.6 minutes). The final validation-summary
 fix passed both targeted QA tests again (1.9 minutes), plus typecheck/lint, 33 component tests
 and production build. Backend: 167 passed, 2 database-specific skips, 859 assertions; Pint
 passed. Cookie security: 5 passed. TEST-05, UX-10 and BL-12 are complete under the revised
-automated scope. Detailed revision/run evidence is in IMPLEMENTATION.md.
+automated scope. Detailed revision/run evidence is in archive/implementation-evidence-2026-11.md.
 
 The user requested that the agent perform QA without manual testing. The current gate for
 TEST-05, UX-10 and BL-12 is the automated suite and coverage map in TEST-COVERAGE.md.
@@ -67,7 +72,7 @@ Automated axe checks are included for login and mobile claims list. Manual audit
 - Indonesia/English toggle persists; IDR retains decimals, dates show Asia/Jakarta.
 - Reduced motion and visible focus; status must be readable without color.
 
-Do not label manual screen-reader testing as completed merely because axe passes. See IMPLEMENTATION.md for actual execution results and remaining environment checks.
+Do not label manual screen-reader testing as completed merely because axe passes. See archive/implementation-evidence-2026-11.md for actual execution results and remaining environment checks.
 
 ## Execution record — 21 November 2026
 
@@ -84,15 +89,15 @@ the labels were corrected in ID/EN. The expanded seven-test suite is being verif
 | Cookie security | Passed | 5 Node tests |
 | Backend SQLite | Passed | PHP 8.3.30: 164 passed / 2 database-specific skips, 847 assertions; Pint passed |
 | Full E2E matrix | Passed | 5 tests, 3.3 minutes, exit 0; Chrome 157.0.8103.79 with disposable SQLite/storage; includes keyboard step focus and upload recovery |
-| MySQL / Docker | Not rerun | Historical evidence is retained in IMPLEMENTATION.md |
+| MySQL / Docker | Not rerun | Historical evidence is retained in archive/implementation-evidence-2026-11.md |
 | Manual client/analyst QA | Not executed | Run core scenarios above on disposable data |
 | Keyboard-only happy paths | Not executed | Complete both roles without pointer input |
 | NVDA/VoiceOver | Not executed | Record reader/version, browser, route and announcements |
 | Remote CI | Passed (26 Nov 2026) | Run `45842080346` on `c3a2482`: backend (sqlite), backend (mysql), frontend, e2e and docker all success. Every earlier run in this repository had failed, always in the e2e job at the document-button Tab step |
 
-The 19–20 November PR/CI execution history is preserved in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+The 19–20 November PR/CI execution history is preserved in [archive/implementation-evidence-2026-11.md](archive/implementation-evidence-2026-11.md).
 The earlier five-test run used revision `3e85bab617625fc1cd521e71e604f87764e4f39b`.
-Later admin fixes have their own verification record in IMPLEMENTATION.md.
+Later admin fixes have their own verification record in archive/implementation-evidence-2026-11.md.
 Local report: `Health_Guard-frontend/playwright-report/index.html` (Git-ignored).
 See [TEST-COVERAGE.md](TEST-COVERAGE.md) for criterion-to-test mapping. The previous claim that
 TEST-04 still lacked a passing expanded browser matrix is superseded by the local results above.

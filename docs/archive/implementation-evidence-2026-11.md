@@ -1,3 +1,12 @@
+> **Status: HISTORICAL, arsip sejak 2026-11-27.** Berkas ini adalah catatan bukti bertanggal untuk
+> [`../../IMPROVEMENT.md`](../../IMPROVEMENT.md) (backlog 64 tiket yang ditutup 26 November 2026).
+> Angka tes di sini berlaku untuk revisi kode yang dicatat pada masing-masing bagian, bukan untuk
+> HEAD saat ini. Tracker aktif untuk audit fungsional adalah
+> [`../HEALTHGUARD_FUNCTIONALITY_AUDIT.md`](../HEALTHGUARD_FUNCTIONALITY_AUDIT.md).
+> Tautan relatif di bawah mengarah ke folder `docs/`, bukan folder `docs/archive/`.
+
+---
+
 # Status implementasi IMPROVEMENT.md
 
 Sumber ruang lingkup: IMPROVEMENT.md; persetujuan pengguna mencakup P0–P3, MySQL8.4, assignment tetap saat resubmit, catatan dalam histori, polling default, nominal maksimal99.999.999,99 IDR. Status ini membedakan kode yang tersedia dari verifikasi deployment.
@@ -186,7 +195,7 @@ termasuk `qa-states.spec.ts`, dijalankan ulang pada SQLite/storage disposable ba
   email duplikat/panjang, ID tidak dikenal/malformed, JPEG, serta batas foto tepat 2 MB.
 - TEST-04: ditambah tes interceptor Axios 401/reauthenticate, akses route, notifikasi,
   seluruh badge status, histori berisi/kosong/error, dan browser registration/rejection/
-  resubmission/partial approval/notification/ownership. [Peta cakupan](TEST-COVERAGE.md)
+  resubmission/partial approval/notification/ownership. [Peta cakupan](../TEST-COVERAGE.md)
   menunjukkan pengganti komponen lama dan delapan skenario E2E sumber.
 - Regresi yang ditemukan diperbaiki: jumlah notifikasi segera diperbarui setelah read-all;
   mark-read gagal tetap membuka klaim; histori kosong memiliki pesan eksplisit.

@@ -13,3 +13,9 @@ slide/
 *.tfstate
 *.tfstate.*
 tfplan
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+*.swp

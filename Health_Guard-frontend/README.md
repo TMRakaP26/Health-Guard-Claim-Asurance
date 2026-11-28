@@ -273,7 +273,7 @@ npm.cmd run test:e2e
 | upload-recovery.spec.ts | Satu upload diputus; retry tanpa klaim/dokumen ganda |
 | workflows.spec.ts | Needs Info, resubmit, approval, draf, locale dan responsivitas |
 
-Hasil HTML: `playwright-report/index.html`; screenshot/trace gagal: `test-results/`. Jangan commit trace yang dapat memuat token/data. Output run terarah historis `test-results-final/` juga diabaikan Git. Bukti **22 November 2026**: 33 tes komponen, 5 tes cookie, 9 browser serta 2 tes ulang terarah lulus. Rincian revisi dan batas verifikasi ada di [IMPLEMENTATION.md](../docs/IMPLEMENTATION.md) dan [TEST-COVERAGE.md](../docs/TEST-COVERAGE.md); jumlah itu bukan klaim run ulang pada setiap perubahan dokumentasi.
+Hasil HTML: `playwright-report/index.html`; screenshot/trace gagal: `test-results/`. Jangan commit trace yang dapat memuat token/data. Output run terarah historis `test-results-final/` juga diabaikan Git. Bukti **22 November 2026**: 33 tes komponen, 5 tes cookie, 9 browser serta 2 tes ulang terarah lulus. Rincian revisi dan batas verifikasi ada di [bukti implementasi](../docs/archive/implementation-evidence-2026-11.md) dan [TEST-COVERAGE.md](../docs/TEST-COVERAGE.md); jumlah itu bukan klaim run ulang pada setiap perubahan dokumentasi.
 
 ## Struktur file
 

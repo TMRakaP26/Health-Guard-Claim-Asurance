@@ -1,5 +1,9 @@
 # Keputusan arsitektur
 
+> Dokumen ini sumber kanonik untuk keputusan arsitektur dan aturan produk lintas layer. Ringkasan di
+> dokumen lain (termasuk tracker audit) harus merujuk ke sini, bukan menyalin ulang keputusannya.
+> Riwayat implementasi ada di [archive/implementation-evidence-2026-11.md](archive/implementation-evidence-2026-11.md).
+
 | Keputusan | Implementasi dan alasan |
 |---|---|
 | MySQL8.4 | Service DB terpisah, transaksi/row locks, decimal(10,2), indeks query. SQLite hanya untuk lokal/test/import. |
